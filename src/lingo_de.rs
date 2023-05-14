@@ -6,11 +6,11 @@ use std::collections::HashMap;
 //todo: make sure support for negative numbers is not needed
 
 const REGEXSTR_PROPS: &str =
-    r#"\#(\w+):("[\w\d\s]*?"|point\([\d,]*?\)|\[((,?\s?(\d+|"[\w\d\s]*?"))*?)\]|\d+)"#;
-const REGEXSTR_NUMBER: &str = r#"(\d+?)"#;
-const REGEXSTR_STRING: &str = r#""([\w\d\s]*?)""#;
-const REGEXSTR_ARRAY: &str = r#"\[(.*?)\]"#; //r#"\[((,?\s?(\d+|"[\w\d\s]*?"))*?)\]"#;
-const REGEXSTR_POINT: &str = r#"point\(([\d,]*?)\)"#;
+    r#"\#(\w+):("[\w\d\s]*?"|point\([\d,]*?\)|\[((,?\s?(\d+|"[\w\d\s]*?"))*?)\]|\d+)"#; // selects all flat properties from a tile serialization string. capture group 1 is property name and capture group 2 is property value (then fed to one of the lower regexes)
+const REGEXSTR_NUMBER: &str = r#"(\d+?)"#; //matches unsigned numbers. look at capture group 1 for contents
+const REGEXSTR_STRING: &str = r#""([\w\d\s]*?)""#; //matches "-delimited strings. look at capture group 1 for contents
+const REGEXSTR_ARRAY: &str = r#"\[(.*?)\]"#; //matches stuff in square brackets. look at capture group 1 for contents
+const REGEXSTR_POINT: &str = r#"point\(([\d,]*?)\)"#; //matches lingo points. look at capture group 1  for contents
 const REGEXSTR_SPLITCOMMAS: &str = r#",\s*"#;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -31,7 +31,6 @@ impl LingoData {
             static ref REGEX_SPLITCOMMAS: regex::Regex =
                 regex::Regex::new(REGEXSTR_SPLITCOMMAS).unwrap();
         }
-        //let order: [regex::Regex; 4] = [REGEX_POINT.clone(), REGEX_ARRAY.clone(), REGEX_STRING.clone(), REGEX_NUMBER.clone()]; // pretty bad
         let mut res = Err("value match not found");
         if let Some(caps) = REGEX_ARRAY.captures(text) {
             let spl = REGEX_SPLITCOMMAS.split(&caps[1]);
