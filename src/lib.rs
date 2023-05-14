@@ -30,16 +30,16 @@ pub enum TileCell {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TileInfo {
-    pub name: String,
-    pub size: UPoint,
-    pub specs: Vec<TileCell>,
-    pub specs2: Option<Vec<TileCell>>,
-    pub tile_type: TileType,
-    pub repeatL: Option<Vec<usize>>,
-    pub buffer_tiles: usize,
-    pub random_vars: Option<usize>,
-    pub ptPos: usize,
-    pub tags: Vec<String>,
+    pub name: String, //nm
+    pub size: Vec<usize>, //sz
+    pub specs: Vec<TileCell>, //specs
+    pub specs2: Option<Vec<TileCell>>, //specs2
+    pub tile_type: TileType, //tp
+    pub repeat_layers: Option<Vec<usize>>, //repeatL
+    pub buffer_tiles: usize, //bfTiles
+    pub random_vars: Option<usize>, //rnd
+    pub preview_pos: usize, //ptPos
+    pub tags: Vec<String>, //tags
 }
 
 impl UPoint {
