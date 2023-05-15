@@ -9,12 +9,12 @@ pub struct UPoint {
     pub x: usize,
     pub y: usize,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TileType {
     VoxelStruct,
     VoxelStructRockType,
-    VoxelStructDisplaceVertical,
-    VoxelStructDisplaceHorizontal,
+    VoxelStructDisplaceV,
+    VoxelStructDisplaceH,
     Box
 }
 
@@ -40,39 +40,4 @@ pub struct TileInfo {
     pub random_vars: Option<usize>, //rnd
     pub preview_pos: usize, //ptPos
     pub tags: Vec<String>, //tags
-}
-
-impl UPoint {
-    pub fn new(x: usize, y: usize) -> UPoint {
-        UPoint { x, y }
-    }
-}
-
-impl TileCell {
-    pub fn new(raw_cell: usize) -> Result<TileCell, &'static str> {
-        TILE_CELL_NUMBERS.with(|val| match val.get_left(&raw_cell) {
-            Some(x) => Ok(x.clone()),
-            None => Err("INVALID VALUE"),
-        })
-    }
-    pub fn to_number(&self) -> Result<usize, &'static str> {
-        TILE_CELL_NUMBERS.with(|val| match val.get_right(self) {
-            Some(x) => Ok(x.clone()),
-            None => Err("INVALID VALUE"),
-        })
-    }
-}
-
-thread_local! {
-    static TILE_CELL_NUMBERS: CycleMap<TileCell, usize> = vec![
-        (TileCell::Air, 0),
-        (TileCell::Wall, 1),
-        (TileCell::Slope(2), 2),
-        (TileCell::Slope(3), 3),
-        (TileCell::Slope(4), 4),
-        (TileCell::Slope(5), 5),
-        (TileCell::Floor, 6),
-        (TileCell::Entrance, 7),
-        (TileCell::Glass, 9)
-        ].into_iter().collect();
 }
