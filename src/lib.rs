@@ -1,7 +1,9 @@
-use cycle_map::CycleMap;
+use cycle_map::{CycleMap, GroupMap};
+use egui::epaint::ahash::HashMap;
+use lingo_de::DeserError;
 
-pub mod lingo_de;
 pub mod app;
+pub mod lingo_de;
 
 #[cfg(test)]
 mod tests;
@@ -25,7 +27,7 @@ pub enum TileCell {
     Glass,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TileInfo {
     pub name: String,                    //nm
     pub size: Vec<i32>,                  //sz
@@ -37,4 +39,24 @@ pub struct TileInfo {
     pub random_vars: Option<i32>,        //rnd
     pub preview_pos: i32,                //ptPos
     pub tags: Vec<String>,               //tags
+}
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TileCategory {
+    pub name: String,
+    pub color: egui::Color32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TileInit {
+    pub categories: GroupMap<Vec<TileInfo>, TileCategory>,
+    pub errored_lines: Vec<(String, DeserError)>,
+}
+
+impl Default for TileInit {
+    fn default() -> Self {
+        Self {
+            categories: Default::default(),
+            errored_lines: Default::default(),
+        }
+    }
 }

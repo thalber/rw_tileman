@@ -1,10 +1,40 @@
+use egui::{CollapsingHeader, Layout};
+
+use crate::{
+    lingo_de::{self, DeserError},
+    TileInfo, TileInit,
+};
+#[derive(Debug)]
+pub enum AppError {
+    IOError(std::io::Error),
+    Todo,
+}
 pub struct TilemanApp {
-    thing: f32,
+    path: String,
+    selected_tile: Option<TileInfo>,
+    all_tiles: TileInit,
+    dumped_errors: bool,
 }
 
 impl TilemanApp {
-    pub fn new(cc: &eframe::CreationContext) -> Self {
-        Self { thing: 0f32 }
+    pub fn new(cc: &eframe::CreationContext) -> Result<Self, AppError> {
+        Ok(Self {
+            path: Default::default(),
+            selected_tile: Default::default(),
+            all_tiles: lingo_de::parse_multiple_tile_info("test_mass_deser.txt".to_string())?,
+            dumped_errors: false,
+        })
+    }
+}
+
+impl Default for TilemanApp {
+    fn default() -> Self {
+        Self {
+            path: Default::default(),
+            selected_tile: Default::default(),
+            all_tiles: Default::default(),
+            dumped_errors: false,
+        }
     }
 }
 
@@ -49,9 +79,49 @@ impl eframe::App for TilemanApp {
     fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &eframe::Frame) {}
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Shrimple as that");
-            
+        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.button("button1");
+                ui.button("button2");
+                ui.button("button3");
+                ui.button("button4");
+            })
         });
+        egui::SidePanel::right("right_panel").show(ctx, |ui| {
+            ui.heading("tiles");
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                for category in self.all_tiles.categories.iter_right() {
+                    CollapsingHeader::new(category.name.as_str()).show(ui, |ui| {
+                        for item in self
+                            .all_tiles
+                            .categories
+                            .get_left_iter(category)
+                            .into_iter()
+                            .flatten()
+                            .flatten()
+                        {
+                            if ui.button(item.name.clone()).clicked() {
+                                self.selected_tile = Some(item.clone());
+                            }
+                        }
+                    });
+                }
+            })
+        });
+
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Path to init");
+            ui.text_edit_singleline(&mut self.path);
+            //ui.heading(format!("{:?}", self.all_tiles.get(self.selected_tile)));
+        });
+
+        if !self.dumped_errors {
+            std::fs::write(
+                "mass_out.txt",
+                format!("{:#?}", self.all_tiles.errored_lines),
+            )
+            .expect("could not write results");
+            self.dumped_errors = true;
+        }
     }
 }

@@ -3,6 +3,13 @@ use nom::combinator::fail;
 use crate::lingo_de::{self, LingoData};
 
 #[test]
+pub fn test_mass_deser_with_categories() {
+    //let lingo = std::fs::read_to_string("test_mass_deser.txt").expect("could not read file");
+    let des = lingo_de::parse_multiple_tile_info("test_mass_deser.txt".to_string()).unwrap();
+    std::fs::write("full_deser_out.txt", format!("{:#?}", des)).expect("could not write results");    
+}
+
+#[test]
 pub fn deser_mass_tileinfo() {
     let lingo = std::fs::read_to_string("test_mass_deser.txt").expect("could not read file");
     let mut total = 0usize;

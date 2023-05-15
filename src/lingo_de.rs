@@ -1,12 +1,13 @@
+use egui::Color32;
 use lazy_static::lazy_static;
 
-use crate::*;
+use crate::{app::AppError, *};
 use std::collections::HashMap;
 
 //todo: make sure support for negative numbers is not needed
 
-const REGEXSTR_PROPS: &str =
-    r#"\#(\w+):("[\\\w\d\s+_-]*?"|point\([\s\d,-]*?\)|\[\s*((\s*?,?\s*?(-?\d+|"[\w\d\s]*?"))*?)\s*\]|\d+)"#; // selects all flat properties from a tile serialization string. capture group 1 is property name and capture group 2 is property value (then fed to one of the lower regexes)
+const REGEXSTR_PROPS: &str = r#"\#(\w+):("[\\\w\d\s+_-]*?"|point\([\s\d,-]*?\)|\[\s*((\s*?,?\s*?(-?\d+|"[\w\d\s]*?"))*?)\s*\]|\d+)"#; // selects all flat properties from a tile serialization string. capture group 1 is property name and capture group 2 is property value (then fed to one of the lower regexes)
+const REGEXSTR_CATEGORY: &str = r#""(.+?)"\s*?,\s*?color\((.+?)\)"#;
 const REGEXSTR_NUMBER: &str = r#"(-?\d+?)"#; //matches unsigned numbers. look at capture group 1 for contents
 const REGEXSTR_STRING: &str = r#""([\w\d\s]*?)""#; //matches "-delimited strings. look at capture group 1 for contents
 const REGEXSTR_ARRAY: &str = r#"\[(.*?)\]"#; //matches stuff in square brackets. look at capture group 1 for contents
@@ -335,4 +336,78 @@ pub fn parse_tile_info<'a>(text: &'a str) -> Result<TileInfo, DeserError> {
 
     Ok(res)
     //Err(DeserError::Todo)
+}
+
+pub fn parse_tile_category<'a>(text: &'a str) -> Result<TileCategory, DeserError> {
+    lazy_static! {
+        static ref REGEX_CATEGORY: regex::Regex = regex::Regex::new(REGEXSTR_CATEGORY).unwrap();
+        static ref REGEX_SPLITCOMMAS: regex::Regex =
+            regex::Regex::new(REGEXSTR_SPLITCOMMAS).unwrap();
+    }
+    if let Some(caps) = REGEX_CATEGORY.captures(text) {
+        let nm = &caps[1];
+        let col: Vec<u8> = REGEX_SPLITCOMMAS
+            .split(text)
+            .into_iter()
+            .filter_map(|sub| sub.parse::<u8>().ok())
+            .collect();
+        Ok(TileCategory {
+            name: nm.to_string(),
+            color: Color32::from_rgb(
+                *col.get(0).unwrap_or(&0u8),
+                *col.get(1).unwrap_or(&0u8),
+                *col.get(2).unwrap_or(&0u8),
+            ),
+        })
+    } else {
+        Err(DeserError::Todo)
+    }
+}
+
+pub fn parse_multiple_tile_info(path: String) -> Result<TileInit, AppError> {
+    let lingo = std::fs::read_to_string(path);
+    let lingo = match lingo {
+        Ok(r) => r,
+        Err(err) => return Err(AppError::IOError(err)),
+    };
+    let mut total = 0usize;
+    let mut parse_errors = Vec::new();
+    let mut success_tiles = Vec::new();
+    let mut current_category: Option<TileCategory> = None;
+
+    let mut results_map = GroupMap::new();
+
+    for line in lingo.lines() {
+        if line.starts_with("--") || line.trim().is_empty() {
+            continue;
+        } else if line.starts_with("-[") && line.ends_with("]") {
+            let maybe_new_category = parse_tile_category(line);
+            match maybe_new_category {
+                Ok(new_category) => {
+                    if let Some(old_category) = current_category {
+                        results_map.insert(success_tiles, old_category);
+                        success_tiles = Vec::new();
+                    }
+                    current_category = Some(new_category)
+                }
+                Err(err) => parse_errors.push((line.to_string(), err)),
+            }
+            continue;
+        } else {
+            total += 1;
+            match lingo_de::parse_tile_info(line) {
+                Err(err) => {
+                    parse_errors.push((line.to_string(), err));
+                }
+                Ok(res) => success_tiles.push(res),
+            }
+        }
+    }
+    Ok(TileInit {
+        categories: results_map,
+        errored_lines: parse_errors,
+    })
+
+    //Err(AppError::Todo)
+    //Ok(res)
 }
