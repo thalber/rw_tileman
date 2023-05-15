@@ -1,1 +1,1 @@
-[#nm:"marked metal ramp", #sz:point(1,1), #specs:[-1], #specs2:0, #tp:"voxelStruct", #repeatL:[10], #bfTiles:1, #rnd:1, #ptPos:0, #tags:["ramp","drawLast"]]
+[#nm:"Inside Huge Horizontal", #sz:point(2,12), #specs:[1,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1], #specs2:[1,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,1], #tp:"voxelStruct", #repeatL:[2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], #bfTiles:0, #rnd:1, #ptPos:0, #tags:[]]
