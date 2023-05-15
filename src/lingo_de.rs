@@ -6,8 +6,8 @@ use std::collections::HashMap;
 //todo: make sure support for negative numbers is not needed
 
 const REGEXSTR_PROPS: &str =
-    r#"\#(\w+):("[\w\d\s]*?"|point\([\d,]*?\)|\[((,?\s?(\d+|"[\w\d\s]*?"))*?)\]|\d+)"#; // selects all flat properties from a tile serialization string. capture group 1 is property name and capture group 2 is property value (then fed to one of the lower regexes)
-const REGEXSTR_NUMBER: &str = r#"(\d+?)"#; //matches unsigned numbers. look at capture group 1 for contents
+    r#"\#(\w+):("[\w\d\s-]*?"|point\([\d,-]*?\)|\[\s*((,?\s*?(-?\d+|"[\w\d\s]*?"))*?)\s*\]|\d+)"#; // selects all flat properties from a tile serialization string. capture group 1 is property name and capture group 2 is property value (then fed to one of the lower regexes)
+const REGEXSTR_NUMBER: &str = r#"(-?\d+?)"#; //matches unsigned numbers. look at capture group 1 for contents
 const REGEXSTR_STRING: &str = r#""([\w\d\s]*?)""#; //matches "-delimited strings. look at capture group 1 for contents
 const REGEXSTR_ARRAY: &str = r#"\[(.*?)\]"#; //matches stuff in square brackets. look at capture group 1 for contents
 const REGEXSTR_POINT: &str = r#"point\(([\d,]*?)\)"#; //matches lingo points. look at capture group 1  for contents
@@ -15,15 +15,29 @@ const REGEXSTR_SPLITCOMMAS: &str = r#",\s*"#;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum LingoData {
-    Number(usize),
+    Number(i32),
     String(String),
     Array(Vec<Box<LingoData>>),
-    Point(Vec<usize>),
-    Null,
+    Point(Vec<i32>),
+    InvalidOrNull(String),
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
+pub enum DeserError {
+    RegexMatchFailed(String),
+    ContentsNotParsed(String),
+    DataConvertFailed(String),
+    TypeMismatch {
+        key: String,
+        expected: String,
+        got: String,
+    },
+    InvalidValue(String),
+    Todo,
 }
 
 impl LingoData {
-    pub fn parse<'a>(text: &str) -> Result<Self, &'a str> {
+    pub fn parse<'a>(text: &str) -> Result<Self, DeserError> {
         // if text == "void" {
         //     return Ok(LingoData::Null);
         // }
@@ -35,7 +49,7 @@ impl LingoData {
             static ref REGEX_SPLITCOMMAS: regex::Regex =
                 regex::Regex::new(REGEXSTR_SPLITCOMMAS).unwrap();
         }
-        let mut res = Err("value match not found");
+        let mut res = Ok(LingoData::InvalidOrNull(text.to_string())); //Err(DeserError::RegexMatchFailed(text.to_string()));
         if let Some(caps) = REGEX_ARRAY.captures(text) {
             let spl = REGEX_SPLITCOMMAS.split(&caps[1]);
             res = Ok(Self::Array(
@@ -50,7 +64,7 @@ impl LingoData {
             let spl = REGEX_SPLITCOMMAS.split(&caps[1]);
             res = Ok(Self::Point(
                 spl.into_iter()
-                    .filter_map(|sub| match sub.parse::<usize>() {
+                    .filter_map(|sub| match sub.parse::<i32>() {
                         Ok(num) => Some(num),
                         Err(_) => None,
                     })
@@ -59,79 +73,92 @@ impl LingoData {
         } else if let Some(caps) = REGEX_STRING.captures(text) {
             res = Ok(Self::String(String::from(&caps[1])))
         } else if let Some(caps) = REGEX_NUMBER.captures(text) {
-            res = match &caps[1].parse::<usize>() {
+            res = match &caps[1].parse::<i32>() {
                 Ok(num) => Ok(Self::Number(*num)),
-                Err(e) => Err("could not parse number from text"),
+                Err(e) => Err(DeserError::ContentsNotParsed(format!(
+                    "{} (usize)",
+                    &caps[1]
+                ))),
             }
         }
         res
     }
-    pub fn as_number(&self) -> Option<usize> {
+    pub fn as_number(&self) -> Result<i32, DeserError> {
         if let LingoData::Number(num) = self {
-            Some(*num)
+            Ok(*num)
         } else {
-            None
+            Err(DeserError::DataConvertFailed(format!(
+                "{:?} not a number",
+                self
+            )))
         }
     }
-    pub fn as_string(&self) -> Option<String> {
+    pub fn as_string(&self) -> Result<String, DeserError> {
         if let LingoData::String(string) = self {
-            Some(string.clone())
+            Ok(string.clone())
         } else {
-            None
+            Err(DeserError::DataConvertFailed(format!(
+                "{:?} not a string",
+                self
+            )))
         }
     }
-    pub fn as_string_array(&self) -> Option<Vec<String>> {
+    pub fn as_string_array(&self) -> Result<Vec<String>, DeserError> {
         if let LingoData::Array(strings) = self {
-            Some(
-                strings
-                    .iter()
-                    .filter_map(|item| {
-                        if let Some(str_item) = item.as_string() {
-                            Some(str_item)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect(),
-            )
+            Ok(strings
+                .iter()
+                .filter_map(|item| {
+                    if let Ok(str_item) = item.as_string() {
+                        Some(str_item)
+                    } else {
+                        None
+                    }
+                })
+                .collect())
         } else {
-            None
+            Err(DeserError::DataConvertFailed(format!(
+                "could not build StringArray from {:?}",
+                self
+            )))
         }
     }
-    pub fn as_number_array(&self) -> Option<Vec<usize>> {
+    pub fn as_number_array(&self) -> Result<Vec<i32>, DeserError> {
         if let LingoData::Array(numbers) = self {
-            Some(
-                numbers
-                    .iter()
-                    .filter_map(|item| {
-                        if let LingoData::Number(num_item) = **item {
-                            Some(num_item)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect(),
-            )
+            Ok(numbers
+                .iter()
+                .filter_map(|item| {
+                    if let LingoData::Number(num_item) = **item {
+                        Some(num_item)
+                    } else {
+                        None
+                    }
+                })
+                .collect())
         } else {
-            None
+            Err(DeserError::DataConvertFailed(format!(
+                "could not build NumberArray from {:?}",
+                self
+            )))
         }
     }
-    pub fn as_tilecell_array(&self) -> Option<Vec<TileCell>> {
+    pub fn as_tilecell_array(&self) -> Result<Vec<TileCell>, DeserError> {
         let number_array = self.as_number_array();
-        if let Some(arr) = number_array {
-            return Some(
-                arr.into_iter()
-                    .map(|item| TileCell::from_number(item))
-                    .filter_map(|x| x.ok())
-                    .collect(),
-            );
+        if let Ok(arr) = number_array {
+            return Ok(arr
+                .into_iter()
+                .map(|item| TileCell::from_number(item))
+                .filter_map(|x| x.ok())
+                .collect());
         };
-        return None;
+        Err(DeserError::DataConvertFailed(format!(
+            "could not build tilecellArray from {:?}",
+            self
+        )))
     }
     pub fn as_null_if_zero(self) -> Self {
         if let LingoData::Number(num_item) = self {
             if num_item == 0 {
-                return Self::Null;
+                return Self::InvalidOrNull("NULL".to_string());
             }
         }
         self
@@ -142,31 +169,31 @@ macro_rules! lookup_static_cyclemap {
     ($map:ident, $func:ident, $lookup:expr) => {
         $map.with(|val| match val.$func($lookup) {
             Some(x) => Ok(x.clone()),
-            None => Err("INVALID VALUE"),
+            None => Err(DeserError::InvalidValue(format!("invalid value {:?}", val))),
         })
     };
 }
 
 impl TileCell {
-    pub fn from_number(raw_cell: usize) -> Result<TileCell, &'static str> {
+    pub fn from_number(raw_cell: i32) -> Result<TileCell, DeserError> {
         lookup_static_cyclemap!(TILE_CELL_NUMBERS, get_left, &raw_cell)
     }
-    pub fn as_number(&self) -> Result<usize, &'static str> {
+    pub fn as_number(&self) -> Result<i32, DeserError> {
         lookup_static_cyclemap!(TILE_CELL_NUMBERS, get_right, self)
     }
 }
 
 impl TileType {
-    pub fn from_string<'a>(text: &'a str) -> Result<TileType, &'static str> {
+    pub fn from_string<'a>(text: &'a str) -> Result<TileType, DeserError> {
         lookup_static_cyclemap!(TILE_TYPE_STRINGS, get_left, &text)
     }
-    pub fn as_string<'a>(&self) -> Result<&'a str, &'a str> {
+    pub fn as_string<'a>(&self) -> Result<&'a str, DeserError> {
         lookup_static_cyclemap!(TILE_TYPE_STRINGS, get_right, self)
     }
 }
 
 thread_local! {
-    static TILE_CELL_NUMBERS: CycleMap<TileCell, usize> = vec![
+    static TILE_CELL_NUMBERS: CycleMap<TileCell, i32> = vec![
         (TileCell::Air, 0),
         (TileCell::Wall, 1),
         (TileCell::Slope(2), 2),
@@ -188,7 +215,7 @@ thread_local! {
     ].into_iter().collect();
 }
 
-pub fn parse_tile_info<'a>(text: &'a str) -> Result<TileInfo, &str> {
+pub fn parse_tile_info<'a>(text: &'a str) -> Result<TileInfo, DeserError> {
     lazy_static::lazy_static! {
         static ref REGEX_PROPERTIES: regex::Regex = regex::Regex::new(REGEXSTR_PROPS).unwrap();
     }
@@ -199,27 +226,39 @@ pub fn parse_tile_info<'a>(text: &'a str) -> Result<TileInfo, &str> {
         //println!("{name} : {val}")
         map.insert(String::from(name), String::from(val));
     }
+
     macro_rules! get_prop {
         ($name:ident, $key:literal) => {
             let $name = map
                 .get($key)
                 .map(|string| string.as_str())
-                .unwrap_or("void");
+                .unwrap_or(concat!("WARNING: MISSING ITEM ", $key));
             let $name = LingoData::parse($name);
         };
     }
     macro_rules! cast_enum {
         ($origname:ident, $newname:ident, $key:literal, $entry:ident) => {
-            let $newname = if let LingoData::$entry(val) = $origname? {
-                Ok(val)
-            } else {
-                Err(concat!("wrong value type for ", $key))
+            let $newname = match $origname {
+                Ok(LingoData::$entry(val)) => Ok(val),
+                Ok(val) => Err(DeserError::TypeMismatch {
+                    key: $key.to_string(),
+                    expected: stringify!($entry).to_string(),
+                    got: format!("{:?}", val),
+                }),
+                Err(err) => Err(err),
             };
+            // if let Ok(LingoData::$entry(val)) = $origname {
+            //     Ok(val)
+            // } else {
+            //     Err(DeserError::TypeMismatch{
+            //         key: $key.to_string(),
+            //         expected: "$entry".to_string(),
+            //         got:
+            //     })
+            // };
         };
     }
-    let x = map
-        .get("a")
-        .unwrap_or(&String::from("void"));
+    //let x = map.get("a").unwrap_or(&String::from("void"));
 
     get_prop!(name, "nm");
     cast_enum!(name, name, "nm", String);
@@ -232,7 +271,7 @@ pub fn parse_tile_info<'a>(text: &'a str) -> Result<TileInfo, &str> {
     //cast_enum!(specs2, specs2_arr, "specs2", Array);
     get_prop!(tile_type, "tp");
     cast_enum!(tile_type, tile_type, "tp", String);
-    get_prop!(repeat_layers, "repeatL"); 
+    get_prop!(repeat_layers, "repeatL");
     get_prop!(buffer_tiles, "bfTiles");
     cast_enum!(buffer_tiles, buffer_tiles, "bfTiles", Number);
     get_prop!(random_vars, "rnd");
@@ -241,19 +280,32 @@ pub fn parse_tile_info<'a>(text: &'a str) -> Result<TileInfo, &str> {
     cast_enum!(preview_pos, preview_pos, "ptPos", Number);
     get_prop!(tags, "tags");
     //cast_enum!(tags, "tags");
-
     let res = TileInfo {
         name: name?,
         size: size?,
-        specs: specs?.as_tilecell_array().ok_or("Specs not an array")?,
-        specs2: specs2?.as_null_if_zero().as_tilecell_array(),
+        specs: specs?.as_tilecell_array()?,
+        specs2: specs2?.as_null_if_zero().as_tilecell_array().ok(),
         tile_type: TileType::from_string(tile_type?.as_str())?,
-        repeat_layers: repeat_layers?.as_number_array(),
+        repeat_layers: repeat_layers.and_then(|x| x.as_number_array()).ok(),
         buffer_tiles: buffer_tiles?,
         random_vars: random_vars.ok(),
         preview_pos: preview_pos?,
         tags: tags?.as_string_array().unwrap_or(Vec::new()),
     };
+    // let res = TileInfo {
+    //     name: name?,
+    //     size: size?,
+    //     specs: specs?.as_tilecell_array().ok_or("Specs not an array")?,
+    //     specs2: specs2?.as_null_if_zero().as_tilecell_array(),
+    //     tile_type: TileType::from_string(tile_type?.as_str())?,
+    //     repeat_layers: repeat_layers?.as_number_array(),
+    //     buffer_tiles: buffer_tiles?,
+    //     random_vars: random_vars.ok(),
+    //     preview_pos: preview_pos?,
+    //     tags: tags?.as_string_array().unwrap_or(Vec::new()),
+    // };
+    // Ok(res)
+
     Ok(res)
-    //Err("todo")
+    //Err(DeserError::Todo)
 }

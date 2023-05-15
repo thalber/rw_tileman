@@ -1,4 +1,29 @@
+use nom::combinator::fail;
+
 use crate::lingo_de::{self, LingoData};
+
+#[test]
+pub fn deser_mass_tileinfo() {
+    let lingo = std::fs::read_to_string("test_mass_deser.txt").expect("could not read file");
+    let mut total = 0usize;
+    let mut failures = Vec::new();
+    //let mut success = 0usize;
+    
+    for line in lingo.lines() {
+        if line.starts_with("--") || line.starts_with("-[") || line.trim().is_empty() {
+            continue;
+        }
+        total += 1;
+        if let Err(err) = lingo_de::parse_tile_info(line) {
+            failures.push((line, err));
+        }
+    }
+    std::fs::write("mass_out.txt", format!("{:#?}", failures)).expect("could not write results");
+    println!("error on {} out of {}", failures.len(), total);
+    //std::fs::write(path, contents)
+    //println!("Failed on: {:?}", failures);
+    assert_eq!(failures.len(), 0);
+}
 
 #[test]
 pub fn deser_single_tileinfo() {
@@ -6,7 +31,8 @@ pub fn deser_single_tileinfo() {
     let tileinfo: crate::TileInfo = match lingo_de::parse_tile_info(lingo.as_str()) {
         Ok(res) => res,
         Err(e) => {
-            let msg = format!("error parsing tileinfo : {}", e);
+            let msg = format!("error parsing tileinfo : {:?
+            }", e);
             panic!("{msg}")
         }
     };
