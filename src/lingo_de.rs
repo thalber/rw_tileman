@@ -6,7 +6,7 @@ use std::collections::HashMap;
 //todo: make sure support for negative numbers is not needed
 
 const REGEXSTR_PROPS: &str =
-    r#"\#(\w+):("[\\\w\d\s-]*?"|point\([\s\d,-]*?\)|\[\s*((\s*?,?\s*?(-?\d+|"[\w\d\s]*?"))*?)\s*\]|\d+)"#; // selects all flat properties from a tile serialization string. capture group 1 is property name and capture group 2 is property value (then fed to one of the lower regexes)
+    r#"\#(\w+):("[\\\w\d\s+_-]*?"|point\([\s\d,-]*?\)|\[\s*((\s*?,?\s*?(-?\d+|"[\w\d\s]*?"))*?)\s*\]|\d+)"#; // selects all flat properties from a tile serialization string. capture group 1 is property name and capture group 2 is property value (then fed to one of the lower regexes)
 const REGEXSTR_NUMBER: &str = r#"(-?\d+?)"#; //matches unsigned numbers. look at capture group 1 for contents
 const REGEXSTR_STRING: &str = r#""([\w\d\s]*?)""#; //matches "-delimited strings. look at capture group 1 for contents
 const REGEXSTR_ARRAY: &str = r#"\[(.*?)\]"#; //matches stuff in square brackets. look at capture group 1 for contents
