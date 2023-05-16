@@ -1,5 +1,4 @@
 use eframe;
-use egui;
 
 fn main() {
     match eframe::run_native(

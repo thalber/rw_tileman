@@ -1,5 +1,4 @@
-use cycle_map::{CycleMap, GroupMap};
-use egui::epaint::ahash::HashMap;
+use cycle_map::{CycleMap};
 use lingo_de::DeserError;
 
 pub mod app;
@@ -29,6 +28,7 @@ pub enum TileCell {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TileInfo {
+    pub active: bool,
     pub name: String,                    //nm
     pub size: Vec<i32>,                  //sz
     pub specs: Vec<TileCell>,            //specs
@@ -44,11 +44,12 @@ pub struct TileInfo {
 pub struct TileCategory {
     pub name: String,
     pub color: egui::Color32,
+    pub tiles: Vec<TileInfo>
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TileInit {
-    pub categories: GroupMap<Vec<TileInfo>, TileCategory>,
+    pub categories: Vec<TileCategory>,
     pub errored_lines: Vec<(String, DeserError)>,
 }
 

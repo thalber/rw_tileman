@@ -34,6 +34,8 @@ pub enum DeserError {
         got: String,
     },
     InvalidValue(String),
+    MissingValue,
+    NoCategory(TileInfo),
     Todo,
 }
 
@@ -319,6 +321,7 @@ pub fn parse_tile_info<'a>(text: &'a str) -> Result<TileInfo, DeserError> {
         random_vars: random_vars.ok(),
         preview_pos: preview_pos?,
         tags: tags?.as_string_array().unwrap_or(Vec::new()),
+        active: text.starts_with("--"),
     };
     // let res = TileInfo {
     //     name: name?,
@@ -358,54 +361,56 @@ pub fn parse_tile_category<'a>(text: &'a str) -> Result<TileCategory, DeserError
                 *col.get(1).unwrap_or(&0u8),
                 *col.get(2).unwrap_or(&0u8),
             ),
+            tiles: Vec::new(),
         })
     } else {
         Err(DeserError::Todo)
     }
 }
 
-pub fn parse_multiple_tile_info(path: String) -> Result<TileInit, AppError> {
-    let lingo = std::fs::read_to_string(path);
-    let lingo = match lingo {
-        Ok(r) => r,
-        Err(err) => return Err(AppError::IOError(err)),
+pub fn parse_multiple_tile_info<'a>(text: &'a str) -> Result<TileInit, AppError> {
+    //let text = text;//std::fs::read_to_string(path);
+    // let lingo = match text {
+    //     Ok(r) => r,
+    //     Err(err) => return Err(AppError::IOError(err)),
+    // };
+    //let text = text;
+    let mut errored_lines = Vec::new();
+    //let mut success_tiles = Vec::new();
+    let mut current_category: TileCategory = TileCategory {
+        name: "NO_CATEGORY".to_string(),
+        color: Color32::from_rgb(255, 0, 0),
+        tiles: Vec::new(),
     };
-    let mut total = 0usize;
-    let mut parse_errors = Vec::new();
-    let mut success_tiles = Vec::new();
-    let mut current_category: Option<TileCategory> = None;
+    let mut categories = Vec::new();
+    //let mut results_map = GroupMap::new();
 
-    let mut results_map = GroupMap::new();
-
-    for line in lingo.lines() {
+    for line in text.lines() {
         if line.starts_with("--") || line.trim().is_empty() {
             continue;
         } else if line.starts_with("-[") && line.ends_with("]") {
+            //let maybe_new_category = Err(DeserError::MissingValue);
             let maybe_new_category = parse_tile_category(line);
             match maybe_new_category {
-                Ok(new_category) => {
-                    if let Some(old_category) = current_category {
-                        results_map.insert(success_tiles, old_category);
-                        success_tiles = Vec::new();
-                    }
-                    current_category = Some(new_category)
+                Ok(newcat) => {
+                    categories.push(current_category);
+                    current_category = newcat;
                 }
-                Err(err) => parse_errors.push((line.to_string(), err)),
+                Err(err) => errored_lines.push((line.to_string(), err)),
             }
-            continue;
         } else {
-            total += 1;
-            match lingo_de::parse_tile_info(line) {
-                Err(err) => {
-                    parse_errors.push((line.to_string(), err));
-                }
-                Ok(res) => success_tiles.push(res),
+            let maybe_new_item = parse_tile_info(line);
+            match maybe_new_item {
+                Ok(new_item) => {
+                    current_category.tiles.push(new_item);
+                },
+                Err(err) => errored_lines.push((line.to_string(), err)),
             }
         }
     }
     Ok(TileInit {
-        categories: results_map,
-        errored_lines: parse_errors,
+        categories,
+        errored_lines,
     })
 
     //Err(AppError::Todo)
