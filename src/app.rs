@@ -1,6 +1,4 @@
-
-
-use egui::{CollapsingHeader};
+use egui::CollapsingHeader;
 
 use crate::{
     lingo_de::{self},
@@ -20,11 +18,12 @@ pub struct TilemanApp {
 
 impl TilemanApp {
     pub fn new(_cc: &eframe::CreationContext) -> Result<Self, AppError> {
+        let path = String::from("testfiles");
         Ok(Self {
-            path: Default::default(),
+            path: path.clone(),
             selected_tile: Default::default(),
             all_tiles: lingo_de::parse_multiple_tile_info(
-                &std::fs::read_to_string("test_mass_deser.txt").unwrap(),
+                &std::fs::read_to_string(path.as_str()).unwrap(),
             )?,
             dumped_errors: false,
         })
@@ -85,9 +84,7 @@ impl eframe::App for TilemanApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                if ui.button("button1").clicked() {
-                    
-                };
+                if ui.button("button1").clicked() {};
                 // ui.button("button2");
                 // ui.button("button3");
                 // ui.button("button4");
@@ -99,9 +96,18 @@ impl eframe::App for TilemanApp {
                 for category in self.all_tiles.categories.iter_mut() {
                     CollapsingHeader::new(category.name.as_str()).show(ui, |ui| {
                         for item in category.tiles.iter_mut() {
-                            if ui.button(item.name.as_str()).clicked() {
-                                println!("{}", item.name)
-                            };
+                            ui.horizontal(|ui| {
+                                ui.checkbox(&mut item.active, "");
+                                if ui.button(item.name.as_str()).clicked() {
+                                    println!("{}", item.name);
+                                    self.selected_tile = Some(item.clone());
+                                    //self.selected_tile = Some(Box::new(*item));
+                                };
+                            });
+
+                            // if ui.button(item.name.as_str()).clicked() {
+                            //     println!("{}", item.name)
+                            // };
                         }
                     });
                 }
@@ -111,7 +117,7 @@ impl eframe::App for TilemanApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Path to init");
             ui.text_edit_singleline(&mut self.path);
-            ui.heading(format!("{:?}", self.selected_tile));
+            ui.label(format!("{:?}", self.selected_tile));
         });
 
         if !self.dumped_errors {

@@ -1,19 +1,28 @@
 use crate::lingo_de::{self, LingoData};
 
 #[test]
-pub fn test_mass_deser_with_categories() {
-    //let lingo = std::fs::read_to_string("test_mass_deser.txt").expect("could not read file");
-    let des = lingo_de::parse_multiple_tile_info(&std::fs::read_to_string("test_mass_deser.txt").expect("could not read file")).unwrap();
-    std::fs::write("full_deser_out.txt", format!("{:#?}", des)).expect("could not write results");    
+pub fn full_folder_deser() {
+    todo!()
 }
 
 #[test]
-pub fn deser_mass_tileinfo() {
-    let lingo = std::fs::read_to_string("test_mass_deser.txt").expect("could not read file");
+pub fn mass_deser_with_categories() {
+    //let lingo = std::fs::read_to_string("test_mass_deser.txt").expect("could not read file");
+    let des = lingo_de::parse_multiple_tile_info(
+        &std::fs::read_to_string("testfiles/mass_deser.txt").expect("could not read file"),
+    )
+    .unwrap();
+    std::fs::write("testdumps/full_deser_out.txt", format!("{:#?}", des))
+        .expect("could not write results");
+}
+
+#[test]
+pub fn mass_deser() {
+    let lingo = std::fs::read_to_string("testfiles/mass_deser.txt").expect("could not read file");
     let mut total = 0usize;
     let mut failures = Vec::new();
     //let mut success = 0usize;
-    
+
     for line in lingo.lines() {
         if line.starts_with("--") || line.starts_with("-[") || line.trim().is_empty() {
             continue;
@@ -23,7 +32,8 @@ pub fn deser_mass_tileinfo() {
             failures.push((line, err));
         }
     }
-    std::fs::write("mass_out.txt", format!("{:#?}", failures)).expect("could not write results");
+    std::fs::write("testdumps/mass_out.txt", format!("{:#?}", failures))
+        .expect("could not write results");
     println!("error on {} out of {}", failures.len(), total);
     //std::fs::write(path, contents)
     //println!("Failed on: {:?}", failures);
@@ -31,13 +41,16 @@ pub fn deser_mass_tileinfo() {
 }
 
 #[test]
-pub fn deser_single_tileinfo() {
-    let lingo = std::fs::read_to_string("test_single_deser.txt").expect("could not read file");
+pub fn single_deser() {
+    let lingo = std::fs::read_to_string("testfiles/single_deser.txt").expect("could not read file");
     let tileinfo: crate::TileInfo = match lingo_de::parse_tile_info(lingo.as_str()) {
         Ok(res) => res,
         Err(e) => {
-            let msg = format!("error parsing tileinfo : {:?
-            }", e);
+            let msg = format!(
+                "error parsing tileinfo : {:?
+            }",
+                e
+            );
             panic!("{msg}")
         }
     };

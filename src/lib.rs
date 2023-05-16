@@ -1,4 +1,4 @@
-use cycle_map::{CycleMap};
+use cycle_map::CycleMap;
 use lingo_de::DeserError;
 
 pub mod app;
@@ -43,8 +43,8 @@ pub struct TileInfo {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TileCategory {
     pub name: String,
-    pub color: egui::Color32,
-    pub tiles: Vec<TileInfo>
+    pub color: [u8; 3],
+    pub tiles: Vec<TileInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

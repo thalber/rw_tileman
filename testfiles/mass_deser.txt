@@ -952,7 +952,7 @@
 [#nm:"TLCorner A 1", #sz:point(3, 3), #specs:[1,1,1,1,1,1,1,1,1], #specs2:0, #tp:"voxelStruct", #repeatL:[5,5,10,6,10,10,6,10,10], #bfTiles:0, #rnd:1, #ptPos:0, #tags:[]]
 
 -["Custom", color(66, 132, 107)]
-[#nm:empty, #sz:point(1, 1),#sz:point(1, 1), #specs:[1], #specs2:0,#tp:"voxelStruct", #repeatL:[1], #bfTiles:0, #rnd:1, #ptPos:0, #tags:[]]]
+--[#nm:empty, #sz:point(1, 1),#sz:point(1, 1), #specs:[1], #specs2:0,#tp:"voxelStruct", #repeatL:[1], #bfTiles:0, #rnd:1, #ptPos:0, #tags:[]]]
 [#nm:"emptySbl", #sz:point(1, 1),#sz:point(1, 1), #specs:[5], #specs2:0,#tp:"voxelStruct", #repeatL:[1], #bfTiles:0, #rnd:1, #ptPos:0, #tags:[]]]
 [#nm:"emptyStl", #sz:point(1, 1),#sz:point(1, 1), #specs:[3], #specs2:0,#tp:"voxelStruct", #repeatL:[1], #bfTiles:0, #rnd:1, #ptPos:0, #tags:[]]]
 [#nm:"emptyStr", #sz:point(1, 1),#sz:point(1, 1), #specs:[2], #specs2:0,#tp:"voxelStruct", #repeatL:[1], #bfTiles:0, #rnd:1, #ptPos:0, #tags:[]]]

@@ -356,11 +356,11 @@ pub fn parse_tile_category<'a>(text: &'a str) -> Result<TileCategory, DeserError
             .collect();
         Ok(TileCategory {
             name: nm.to_string(),
-            color: Color32::from_rgb(
+            color: [
                 *col.get(0).unwrap_or(&0u8),
                 *col.get(1).unwrap_or(&0u8),
                 *col.get(2).unwrap_or(&0u8),
-            ),
+            ],
             tiles: Vec::new(),
         })
     } else {
@@ -379,7 +379,7 @@ pub fn parse_multiple_tile_info<'a>(text: &'a str) -> Result<TileInit, AppError>
     //let mut success_tiles = Vec::new();
     let mut current_category: TileCategory = TileCategory {
         name: "NO_CATEGORY".to_string(),
-        color: Color32::from_rgb(255, 0, 0),
+        color: [255, 0, 0],
         tiles: Vec::new(),
     };
     let mut categories = Vec::new();
@@ -403,7 +403,7 @@ pub fn parse_multiple_tile_info<'a>(text: &'a str) -> Result<TileInit, AppError>
             match maybe_new_item {
                 Ok(new_item) => {
                     current_category.tiles.push(new_item);
-                },
+                }
                 Err(err) => errored_lines.push((line.to_string(), err)),
             }
         }
