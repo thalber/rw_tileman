@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use egui::CollapsingHeader;
 
 use crate::{
@@ -10,7 +12,7 @@ pub enum AppError {
     Todo,
 }
 pub struct TilemanApp {
-    path: String,
+    path: PathBuf,
     selected_tile: Option<TileInfo>,
     all_tiles: TileInit,
     dumped_errors: bool,
@@ -18,12 +20,26 @@ pub struct TilemanApp {
 
 impl TilemanApp {
     pub fn new(_cc: &eframe::CreationContext) -> Result<Self, AppError> {
-        let path = String::from("testfiles");
+        let mut errors = Vec::new();
+        let path = std::env::current_dir()
+            .expect("Could not get working directory")
+            .join("testfiles");
+        let additional_categories = lingo_de::collect_categories_from_subfolders(path.clone())
+            .unwrap_or(Vec::new())
+            .into_iter()
+            .map(|(category, newerrors)| {
+                for newerror in newerrors {
+                    errors.push(newerror)
+                };
+                category
+            })
+            .collect();
         Ok(Self {
             path: path.clone(),
             selected_tile: Default::default(),
-            all_tiles: lingo_de::parse_multiple_tile_info(
-                &std::fs::read_to_string(path.as_str()).unwrap(),
+            all_tiles: lingo_de::parse_tile_init(
+                std::fs::read_to_string(path.join("init.txt")).unwrap(),
+                additional_categories,
             )?,
             dumped_errors: false,
         })
@@ -116,7 +132,7 @@ impl eframe::App for TilemanApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Path to init");
-            ui.text_edit_singleline(&mut self.path);
+            //ui.text_edit_singleline(&mut self.path);
             ui.label(format!("{:?}", self.selected_tile));
         });
 

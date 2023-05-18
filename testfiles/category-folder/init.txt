@@ -1,0 +1,2 @@
+[#nm:"Block Edge N", #sz:point(1,1), #specs:[1], #specs2:0, #tp:"voxelStruct", #repeatL:[1,1,1,1,1,4,1], #bfTiles:0, #rnd:1, #ptPos:0, #tags:[]]
+[#nm:"Block Edge E", #sz:point(1,1), #specs:[1], #specs2:0, #tp:"voxelStruct", #repeatL:[1,1,1,1,1,4,1], #bfTiles:0, #rnd:1, #ptPos:0, #tags:[]]

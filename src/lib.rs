@@ -4,6 +4,9 @@ use lingo_de::DeserError;
 pub mod app;
 pub mod lingo_de;
 
+type ParseErrorReports = Vec<(String, DeserError)>;
+type PrimitiveColor = [u8; 3];
+
 #[cfg(test)]
 mod tests;
 
@@ -42,6 +45,7 @@ pub struct TileInfo {
 }
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TileCategory {
+    pub is_subfolder: bool,
     pub name: String,
     pub color: [u8; 3],
     pub tiles: Vec<TileInfo>,
@@ -50,7 +54,7 @@ pub struct TileCategory {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TileInit {
     pub categories: Vec<TileCategory>,
-    pub errored_lines: Vec<(String, DeserError)>,
+    pub errored_lines: ParseErrorReports,
 }
 
 impl Default for TileInit {

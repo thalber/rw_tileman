@@ -1,15 +1,42 @@
-use crate::lingo_de::{self, LingoData};
+use crate::{
+    lingo_de::{self, LingoData},
+    TileInit,
+};
 
 #[test]
 pub fn full_folder_deser() {
-    todo!()
+    let mut errors = Vec::new();
+    let path_in = std::env::current_dir()
+        .expect("Could not get working directory")
+        .join("testfiles");
+
+    let path_out = std::env::current_dir().unwrap().join("testdumps");
+    let additional_categories = lingo_de::collect_categories_from_subfolders(path_in.clone())
+        .unwrap_or(Vec::new())
+        .into_iter()
+        .map(|(category, newerrors)| {
+            for newerror in newerrors {
+                errors.push(newerror)
+            }
+            category
+        })
+        .collect();
+    let mut init = lingo_de::parse_tile_init(
+        std::fs::read_to_string(path_in.join("init.txt")).unwrap(),
+        additional_categories,
+    )
+    .unwrap();
+    init.errored_lines = init.errored_lines.into_iter().chain(errors).collect();
+    _ = std::fs::write(path_out.join("full_deser_init.txt"), format!("{:#?}", init));
+    //_ = std::fs::write(path_in.join("full_deser_errors"), format!("{:#?}", errors));
 }
 
 #[test]
 pub fn mass_deser_with_categories() {
     //let lingo = std::fs::read_to_string("test_mass_deser.txt").expect("could not read file");
-    let des = lingo_de::parse_multiple_tile_info(
-        &std::fs::read_to_string("testfiles/mass_deser.txt").expect("could not read file"),
+    let des = lingo_de::parse_tile_init(
+        std::fs::read_to_string("testfiles/mass_deser.txt").expect("could not read file"),
+        Vec::new(),
     )
     .unwrap();
     std::fs::write("testdumps/full_deser_out.txt", format!("{:#?}", des))
