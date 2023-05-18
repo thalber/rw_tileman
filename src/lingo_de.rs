@@ -13,6 +13,7 @@ const REGEXSTR_STRING: &str = r#""([\w\d\s]*?)""#; //matches "-delimited strings
 const REGEXSTR_ARRAY: &str = r#"\[(.*?)\]"#; //matches stuff in square brackets. look at capture group 1 for contents
 const REGEXSTR_POINT: &str = r#"point\(([\d,]*?)\)"#; //matches lingo points. look at capture group 1  for contents
 const REGEXSTR_SPLITCOMMAS: &str = r#"\s*,\s*"#;
+const TILE_ON_MARKER: &str = "--TILE_ENABLED";
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum LingoData {
@@ -23,7 +24,7 @@ pub enum LingoData {
     InvalidOrNull(String),
 }
 
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum DeserError {
     RegexMatchFailed(String),
     ContentsNotParsed(String),
@@ -80,39 +81,6 @@ impl LingoData {
         } else if let Ok(val) = text.parse::<i32>() {
             res = Ok(LingoData::Number(val))
         }
-
-        //Err(DeserError::RegexMatchFailed(text.to_string()));
-        // if let Some(caps) = REGEX_ARRAY.captures(text) {
-        //     let spl = REGEX_SPLITCOMMAS.split(&caps[1]);
-        //     res = Ok(Self::Array(
-        //         spl.into_iter()
-        //             .filter_map(|sub| match LingoData::parse(sub) {
-        //                 Ok(ld) => Some(Box::new(ld)),
-        //                 Err(_) => None,
-        //             })
-        //             .collect(),
-        //     ))
-        // } else if let Some(caps) = REGEX_POINT.captures(text) {
-        //     let spl = REGEX_SPLITCOMMAS.split(&caps[1]);
-        //     res = Ok(Self::Point(
-        //         spl.into_iter()
-        //             .filter_map(|sub| match sub.parse::<i32>() {
-        //                 Ok(num) => Some(num),
-        //                 Err(_) => None,
-        //             })
-        //             .collect(),
-        //     ))
-        // } else if let Some(caps) = REGEX_STRING.captures(text) {
-        //     res = Ok(Self::String(String::from(&caps[1])))
-        // } else if let Some(caps) = REGEX_NUMBER.captures(text) {
-        //     res = match &caps[1].parse::<i32>() {
-        //         Ok(num) => Ok(Self::Number(*num)),
-        //         Err(e) => Err(DeserError::ContentsNotParsed(format!(
-        //             "{} (usize)",
-        //             &caps[1]
-        //         ))),
-        //     }
-        // }
         res
     }
     pub fn as_number(&self) -> Result<i32, DeserError> {
@@ -247,7 +215,7 @@ thread_local! {
     ].into_iter().collect();
 }
 
-pub fn parse_tile_info<'a>(text: &'a str) -> Result<TileInfo, DeserError> {
+pub fn parse_tile_info<'a>(text: &'a str, force_enabled: bool) -> Result<TileInfo, DeserError> {
     lazy_static::lazy_static! {
         static ref REGEX_PROPERTIES: regex::Regex = regex::Regex::new(REGEXSTR_PROPS).unwrap();
     }
@@ -309,22 +277,8 @@ pub fn parse_tile_info<'a>(text: &'a str) -> Result<TileInfo, DeserError> {
         random_vars: random_vars.ok(),
         preview_pos: preview_pos?,
         tags: tags?.as_string_array().unwrap_or(Vec::new()),
-        active: text.starts_with("--"),
+        active: force_enabled || text.ends_with(TILE_ON_MARKER),
     };
-    // let res = TileInfo {
-    //     name: name?,
-    //     size: size?,
-    //     specs: specs?.as_tilecell_array().ok_or("Specs not an array")?,
-    //     specs2: specs2?.as_null_if_zero().as_tilecell_array(),
-    //     tile_type: TileType::from_string(tile_type?.as_str())?,
-    //     repeat_layers: repeat_layers?.as_number_array(),
-    //     buffer_tiles: buffer_tiles?,
-    //     random_vars: random_vars.ok(),
-    //     preview_pos: preview_pos?,
-    //     tags: tags?.as_string_array().unwrap_or(Vec::new()),
-    // };
-    // Ok(res)
-
     Ok(res)
     //Err(DeserError::Todo)
 }
@@ -335,7 +289,7 @@ pub fn parse_tile_info_multiple<'a>(
     let mut errors = Vec::new();
     let mut tiles = Vec::new();
     for line in text.lines().filter(|line| !line.starts_with("--")) {
-        match parse_tile_info(line) {
+        match parse_tile_info(line, false) {
             Ok(tile) => tiles.push(tile),
             Err(err) => errors.push((line.to_string(), err)),
         }
@@ -356,16 +310,14 @@ pub fn parse_category_header<'a>(text: &'a str) -> Result<TileCategory, DeserErr
             .into_iter()
             .filter_map(|sub| sub.parse::<u8>().ok())
             .collect();
-        Ok(TileCategory {
-            name: nm.to_string(),
-            color: [
+        Ok(TileCategory::new_main(
+            nm.to_string(),
+            [
                 *col.get(0).unwrap_or(&0u8),
                 *col.get(1).unwrap_or(&0u8),
                 *col.get(2).unwrap_or(&0u8),
             ],
-            tiles: Vec::new(),
-            is_subfolder: false,
-        })
+        ))
     } else {
         Err(DeserError::Todo)
     }
@@ -377,12 +329,14 @@ pub fn parse_tile_init<'a>(
 ) -> Result<TileInit, AppError> {
     let mut errored_lines = Vec::new();
     //let mut success_tiles = Vec::new();
-    let mut current_category: TileCategory = TileCategory {
-        name: "NO_CATEGORY".to_string(),
-        color: [255, 0, 0],
-        tiles: Vec::new(),
-        is_subfolder: false,
-    };
+    let mut current_category: TileCategory =
+        TileCategory::new_main(String::from("NO_CATEGORY"), [255, 0, 0]);
+    //  {
+    //     name: "NO_CATEGORY".to_string(),
+    //     color: [255, 0, 0],
+    //     tiles: Vec::new(),
+    //     subfolder: None,
+    // };
     let mut categories = Vec::new();
     //let mut results_map = GroupMap::new();
 
@@ -401,7 +355,7 @@ pub fn parse_tile_init<'a>(
                 Err(err) => errored_lines.push((line.to_string(), err)),
             }
         } else {
-            let maybe_new_item = parse_tile_info(line);
+            let maybe_new_item = parse_tile_info(line, true);
             match maybe_new_item {
                 Ok(new_item) => {
                     current_category.tiles.push(new_item);
@@ -411,9 +365,10 @@ pub fn parse_tile_init<'a>(
         }
     }
     categories.push(current_category);
+    let additional_categories_clone = additional_categories.clone();
     categories = categories
         .into_iter()
-        .filter(|cat| cat.tiles.len() > 0)
+        .filter(|cat| cat.tiles.len() > 0 && !additional_categories_clone.contains(cat))
         .chain(additional_categories)
         .collect();
 
@@ -445,22 +400,22 @@ pub fn collect_categories_from_subfolders(
             if let Ok(contents) = std::fs::read_to_string(subinit.clone()) {
                 let color_contents =
                     std::fs::read_to_string(subcolor).unwrap_or(String::from("255,0,0"));
-                let mut colorstr = REGEX_SPLITCOMMAS
+                let mut colorsplit = REGEX_SPLITCOMMAS
                     .split(color_contents.as_str())
                     .filter_map(|substring| substring.parse::<u8>().ok());
                 let color = [
-                    colorstr.next().unwrap_or(255u8),
-                    colorstr.next().unwrap_or(0u8),
-                    colorstr.next().unwrap_or(0u8),
+                    colorsplit.next().unwrap_or(255u8),
+                    colorsplit.next().unwrap_or(0u8),
+                    colorsplit.next().unwrap_or(0u8),
                 ];
                 let (tiles, errors) = parse_tile_info_multiple(contents.as_str()).ok()?;
                 return Some((
-                    TileCategory {
-                        is_subfolder: true,
-                        name: entry.file_name().to_string_lossy().to_string(),
+                    TileCategory::new_sub(
+                        entry.path().to_path_buf(),
+                        entry.file_name().to_string_lossy().to_string(),
                         color,
-                        tiles: tiles,
-                    },
+                        tiles,
+                    ),
                     errors,
                 ));
             };

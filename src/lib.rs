@@ -1,8 +1,10 @@
 use cycle_map::CycleMap;
+use egui::epaint::tessellator::path;
 use lingo_de::DeserError;
 
 pub mod app;
 pub mod lingo_de;
+mod utl;
 
 type ParseErrorReports = Vec<(String, DeserError)>;
 type PrimitiveColor = [u8; 3];
@@ -29,7 +31,22 @@ pub enum TileCell {
     Glass,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
+pub struct TileInit {
+    pub categories: Vec<TileCategory>,
+    pub errored_lines: ParseErrorReports,
+}
+
+#[derive(Debug, Clone, Hash)]
+pub struct TileCategory {
+    pub enabled: bool,
+    pub subfolder: Option<std::path::PathBuf>,
+    pub name: String,
+    pub color: PrimitiveColor,
+    pub tiles: Vec<TileInfo>,
+}
+
+#[derive(Debug, Clone, Hash)]
 pub struct TileInfo {
     pub active: bool,
     pub name: String,                    //nm
@@ -43,18 +60,40 @@ pub struct TileInfo {
     pub preview_pos: i32,                //ptPos
     pub tags: Vec<String>,               //tags
 }
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TileCategory {
-    pub is_subfolder: bool,
-    pub name: String,
-    pub color: [u8; 3],
-    pub tiles: Vec<TileInfo>,
+
+impl PartialEq for TileInfo {
+    fn eq(&self, other: &Self) -> bool {
+        //self.active == other.active
+        //&&
+        self.name == other.name
+        // && self.size == other.size
+        // && self.specs == other.specs
+        // && self.specs2 == other.specs2
+        // && self.tile_type == other.tile_type
+        // && self.repeat_layers == other.repeat_layers
+        // && self.buffer_tiles == other.buffer_tiles
+        // && self.random_vars == other.random_vars
+        // && self.preview_pos == other.preview_pos
+        // && self.tags == other.tags
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TileInit {
-    pub categories: Vec<TileCategory>,
-    pub errored_lines: ParseErrorReports,
+impl PartialEq for TileCategory {
+    fn eq(&self, other: &Self) -> bool {
+        //self.is_subfolder == other.is_subfolder
+        //&&
+        self.name == other.name
+        //&& self.color == other.color
+        //&& self.tiles == other.tiles
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
 }
 
 impl Default for TileInit {
@@ -62,6 +101,32 @@ impl Default for TileInit {
         Self {
             categories: Default::default(),
             errored_lines: Default::default(),
+        }
+    }
+}
+
+impl TileCategory {
+    pub fn new_main(name: String, color: PrimitiveColor) -> Self {
+        TileCategory {
+            enabled: true,
+            subfolder: None,
+            name,
+            color,
+            tiles: Vec::new(),
+        }
+    }
+    pub fn new_sub(
+        root: std::path::PathBuf,
+        name: String,
+        color: PrimitiveColor,
+        tiles: Vec<TileInfo>,
+    ) -> Self {
+        TileCategory {
+            enabled: true,
+            subfolder: Some(root.join(name.clone())),
+            name,
+            color,
+            tiles,
         }
     }
 }

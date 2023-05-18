@@ -4,6 +4,7 @@ use egui::CollapsingHeader;
 
 use crate::{
     lingo_de::{self},
+    utl::*,
     TileInfo, TileInit,
 };
 #[derive(Debug)]
@@ -12,8 +13,9 @@ pub enum AppError {
     Todo,
 }
 pub struct TilemanApp {
-    path: PathBuf,
-    selected_tile: Option<TileInfo>,
+    root: PathBuf,
+    output_path: PathBuf,
+    selected_tile: Option<(usize, usize)>,
     all_tiles: TileInit,
     dumped_errors: bool,
 }
@@ -21,27 +23,31 @@ pub struct TilemanApp {
 impl TilemanApp {
     pub fn new(_cc: &eframe::CreationContext) -> Result<Self, AppError> {
         let mut errors = Vec::new();
-        let path = std::env::current_dir()
-            .expect("Could not get working directory")
+        let root = std::env::current_dir()
+            .expect("could not get wd")
             .join("testfiles");
-        let additional_categories = lingo_de::collect_categories_from_subfolders(path.clone())
+        let out = std::env::current_dir()
+            .expect("could not get wd")
+            .join("testdumps");
+        let additional_categories = lingo_de::collect_categories_from_subfolders(root.clone())
             .unwrap_or(Vec::new())
             .into_iter()
             .map(|(category, newerrors)| {
                 for newerror in newerrors {
                     errors.push(newerror)
-                };
+                }
                 category
             })
             .collect();
         Ok(Self {
-            path: path.clone(),
+            root: root.clone(),
             selected_tile: Default::default(),
             all_tiles: lingo_de::parse_tile_init(
-                std::fs::read_to_string(path.join("init.txt")).unwrap(),
+                std::fs::read_to_string(root.join("init.txt")).unwrap(),
                 additional_categories,
             )?,
             dumped_errors: false,
+            output_path: out,
         })
     }
 }
@@ -49,10 +55,11 @@ impl TilemanApp {
 impl Default for TilemanApp {
     fn default() -> Self {
         Self {
-            path: Default::default(),
+            root: Default::default(),
             selected_tile: Default::default(),
             all_tiles: Default::default(),
             dumped_errors: false,
+            output_path: Default::default(),
         }
     }
 }
@@ -109,21 +116,18 @@ impl eframe::App for TilemanApp {
         egui::SidePanel::right("right_panel").show(ctx, |ui| {
             ui.heading("tiles");
             egui::ScrollArea::vertical().show(ui, |ui| {
-                for category in self.all_tiles.categories.iter_mut() {
+                for category_index in indices(&self.all_tiles.categories) {
+                    let category = &mut self.all_tiles.categories[category_index];
                     CollapsingHeader::new(category.name.as_str()).show(ui, |ui| {
-                        for item in category.tiles.iter_mut() {
+                        for item_index in indices(&category.tiles) {
+                            let item = &mut category.tiles[item_index];
                             ui.horizontal(|ui| {
                                 ui.checkbox(&mut item.active, "");
                                 if ui.button(item.name.as_str()).clicked() {
                                     println!("{}", item.name);
-                                    self.selected_tile = Some(item.clone());
-                                    //self.selected_tile = Some(Box::new(*item));
+                                    self.selected_tile = Some((category_index, item_index));
                                 };
                             });
-
-                            // if ui.button(item.name.as_str()).clicked() {
-                            //     println!("{}", item.name)
-                            // };
                         }
                     });
                 }
@@ -132,13 +136,21 @@ impl eframe::App for TilemanApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Path to init");
-            //ui.text_edit_singleline(&mut self.path);
-            ui.label(format!("{:?}", self.selected_tile));
+            if let Some((category_index, item_index)) = self.selected_tile {
+                let maaaaybe_item = self
+                    .all_tiles
+                    .categories
+                    .get(category_index)
+                    .map(|cat| cat.tiles.get(item_index));
+                if let Some(Some(item)) = maaaaybe_item {
+                    ui.label(format!("{:?}", item));
+                }
+            }
         });
 
         if !self.dumped_errors {
             std::fs::write(
-                "mass_out.txt",
+                self.root.join("tileman_errors.txt"),
                 format!("{:#?}", self.all_tiles.errored_lines),
             )
             .expect("could not write results");

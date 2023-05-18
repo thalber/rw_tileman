@@ -1,2 +1,3 @@
-[#nm:"Block Edge N", #sz:point(1,1), #specs:[1], #specs2:0, #tp:"voxelStruct", #repeatL:[1,1,1,1,1,4,1], #bfTiles:0, #rnd:1, #ptPos:0, #tags:[]]
-[#nm:"Block Edge E", #sz:point(1,1), #specs:[1], #specs2:0, #tp:"voxelStruct", #repeatL:[1,1,1,1,1,4,1], #bfTiles:0, #rnd:1, #ptPos:0, #tags:[]]
+[#nm:"Big Stone", #sz:point(3,3), #specs:[1, 1, 1, 1, 1, 1, 1, 1, 1], #specs2:[1, 1, 1, 1, 1, 1, 1, 1, 1], #tp:"voxelStructRockType", #bfTiles:1, #rnd:3, #ptPos:0, #tags:[]] --TILE_ENABLED
+[#nm:"Big Stone Marked", #sz:point(3,3), #specs:[1, 1, 1, 1, 1, 1, 1, 1, 1], #specs2:[1, 1, 1, 1, 1, 1, 1, 1, 1], #tp:"voxelStructRockType", #bfTiles:1, #rnd:3, #ptPos:0, #tags:[]]
+[#nm:"Rounded Rock", #sz:point(4,3), #specs:[3,1,5,1,1,1,1,1,1,2,1,4], #specs2:0, #tp:"voxelStructRockType", #bfTiles:1, #rnd:3, #ptPos:0, #tags:[]]

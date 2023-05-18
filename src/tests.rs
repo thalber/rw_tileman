@@ -55,7 +55,7 @@ pub fn mass_deser() {
             continue;
         }
         total += 1;
-        if let Err(err) = lingo_de::parse_tile_info(line) {
+        if let Err(err) = lingo_de::parse_tile_info(line, true) {
             failures.push((line, err));
         }
     }
@@ -70,7 +70,7 @@ pub fn mass_deser() {
 #[test]
 pub fn single_deser() {
     let lingo = std::fs::read_to_string("testfiles/single_deser.txt").expect("could not read file");
-    let tileinfo: crate::TileInfo = match lingo_de::parse_tile_info(lingo.as_str()) {
+    let tileinfo: crate::TileInfo = match lingo_de::parse_tile_info(lingo.as_str(), true) {
         Ok(res) => res,
         Err(e) => {
             let msg = format!(
