@@ -1,7 +1,18 @@
 use crate::{
     lingo_de::{self, LingoData},
-    TileInit,
+    TileInit, lingo_ser,
 };
+
+#[test]
+pub fn ser_and_deser() {
+    let initial = r#"[#nm:"test_tile", #sz:point(2, 2), #specs:[1,1,1,1], #specs2:0, #tp:"voxelStruct", #repeatL:[10], #bfTiles:0, #rnd:1, #ptPos:0, #tags:["a", "b"]]"#;
+    let de = lingo_de::parse_tile_info(initial, false).unwrap();
+    let ser = lingo_ser::serialize_tileinfo(&de);
+    //assert_eq!(initial, ser.as_str());
+    let de2 = lingo_de::parse_tile_info(ser.as_str(), false).unwrap();
+    assert_eq!(de, de2);
+
+}
 
 #[test]
 pub fn full_folder_deser() {

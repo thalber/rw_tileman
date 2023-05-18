@@ -1,9 +1,9 @@
 use cycle_map::CycleMap;
-use egui::epaint::tessellator::path;
 use lingo_de::DeserError;
 
 pub mod app;
 pub mod lingo_de;
+pub mod lingo_ser;
 mod utl;
 
 type ParseErrorReports = Vec<(String, DeserError)>;
@@ -66,15 +66,15 @@ impl PartialEq for TileInfo {
         //self.active == other.active
         //&&
         self.name == other.name
-        // && self.size == other.size
-        // && self.specs == other.specs
-        // && self.specs2 == other.specs2
-        // && self.tile_type == other.tile_type
-        // && self.repeat_layers == other.repeat_layers
-        // && self.buffer_tiles == other.buffer_tiles
-        // && self.random_vars == other.random_vars
-        // && self.preview_pos == other.preview_pos
-        // && self.tags == other.tags
+            && self.size == other.size
+            && self.specs == other.specs
+            && self.specs2 == other.specs2
+            && self.tile_type == other.tile_type
+            && self.repeat_layers == other.repeat_layers
+            && self.buffer_tiles == other.buffer_tiles
+            && self.random_vars == other.random_vars
+            && self.preview_pos == other.preview_pos
+            && self.tags == other.tags
     }
 
     fn ne(&self, other: &Self) -> bool {
@@ -129,4 +129,54 @@ impl TileCategory {
             tiles,
         }
     }
+}
+
+macro_rules! lookup_static_cyclemap {
+    ($map:ident, $func:ident, $lookup:expr) => {
+        $map.with(|val| match val.$func($lookup) {
+            Some(x) => Ok(x.clone()),
+            None => Err(DeserError::InvalidValue(format!("invalid value {:?}", val))),
+        })
+    };
+}
+
+impl TileCell {
+    pub fn from_number(raw_cell: i32) -> Result<TileCell, DeserError> {
+        lookup_static_cyclemap!(TILE_CELL_NUMBERS, get_left, &raw_cell)
+    }
+    pub fn as_number(&self) -> Result<i32, DeserError> {
+        lookup_static_cyclemap!(TILE_CELL_NUMBERS, get_right, self)
+    }
+}
+
+impl TileType {
+    pub fn from_string<'a>(text: &'a str) -> Result<TileType, DeserError> {
+        lookup_static_cyclemap!(TILE_TYPE_STRINGS, get_left, &text)
+    }
+    pub fn as_string<'a>(&self) -> Result<&'a str, DeserError> {
+        lookup_static_cyclemap!(TILE_TYPE_STRINGS, get_right, self)
+    }
+}
+
+thread_local! {
+    static TILE_CELL_NUMBERS: CycleMap<TileCell, i32> = vec![
+        (TileCell::Air, 0),
+        (TileCell::Wall, 1),
+        (TileCell::Slope(2), 2),
+        (TileCell::Slope(3), 3),
+        (TileCell::Slope(4), 4),
+        (TileCell::Slope(5), 5),
+        (TileCell::Floor, 6),
+        (TileCell::Entrance, 7),
+        (TileCell::Glass, 9)
+        ].into_iter().collect();
+
+    static TILE_TYPE_STRINGS: CycleMap<TileType, &'static str> = vec![
+        (TileType::VoxelStruct, "voxelStruct"),
+        (TileType::VoxelStructRockType, "voxelStructRockType"),
+        (TileType::VoxelStructDisplaceV, "voxelStructRandomDisplaceVertical"),
+        (TileType::VoxelStructDisplaceH, "voxelStructRandomDisplaceHorizontal"),
+        (TileType::Box, "box")
+
+    ].into_iter().collect();
 }
