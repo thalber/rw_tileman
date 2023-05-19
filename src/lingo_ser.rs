@@ -1,6 +1,68 @@
-use std::num;
+use crate::{SerErrorReports, TileCategory, TileCell, TileInfo, TileInit};
 
-use crate::{TileCell, TileInfo};
+#[derive(Debug, Clone, PartialEq)]
+pub enum SerError {
+    IOError(String),
+    Todo,
+}
+
+pub fn rewrite_init(init: &TileInit) -> Result<SerErrorReports, (SerError, SerErrorReports)> {
+    println!("{:?}", init.root.to_string_lossy());
+    let mut main_init_to_write = String::new();
+    let mut errors = SerErrorReports::new();
+    for category in init.categories.clone() {
+        let cat_text_for_main = serialize_category(&category, true)
+            .into_iter()
+            .fold(String::new(), |sum, new| format!("{sum}\n{new}"));
+        let cat_text_for_sub = serialize_category(&category, false).get(1..).unwrap_or(&[])
+            .into_iter()
+            .fold(String::new(), |sum, new| format!("{sum}\n{new}"));
+
+        if category.enabled {
+            main_init_to_write.push('\n');
+            main_init_to_write.push_str(cat_text_for_main.as_str());
+        }
+        if let Some(sub) = category.subfolder.clone() {
+            println!("{}", sub.to_string_lossy());
+            let write_result = std::fs::write(sub.join("init.txt"), cat_text_for_sub);
+            if let Err(err) = write_result {
+                errors.push((category.clone(), SerError::IOError(format!("{:?}", err))));
+            }
+        };
+    }
+    if let Err(err) = std::fs::write(init.root.join("init.txt"), main_init_to_write) {
+        return Err((SerError::IOError(format!("{err}")), errors));
+    };
+    Ok(errors)
+}
+
+pub fn serialize_category(category: &TileCategory, exclude_disabled: bool) -> Vec<String> {
+    // let res = category
+    // .tiles
+    // .iter()
+    // .filter_map(|tile| match tile.active {
+    //     true => Some(serialize_tileinfo(tile)),
+    //     false => None,
+    // }).collect();
+    let mut res = Vec::new();
+    res.push(serialize_category_header(category));
+    for item in category.tiles.iter().filter_map(|tile| {
+        if !tile.active && exclude_disabled {
+            None
+        } else {
+            Some(serialize_tileinfo(tile))
+        }
+    }) {
+        res.push(item);
+    }
+    res
+}
+
+pub fn serialize_category_header(category: &TileCategory) -> String {
+    let name = category.name.clone();
+    let color = aggregate_number_array(category.color.clone().into_iter().map(|num| num as i32));
+    format!(r#"-["{name}", color({color})]"#)
+}
 
 pub fn serialize_tileinfo(tile: &TileInfo) -> String {
     let nm = tile.name.clone();
@@ -25,8 +87,12 @@ pub fn serialize_tileinfo(tile: &TileInfo) -> String {
     let bf_tiles = tile.buffer_tiles;
     let pt_pos = 0;
     let tags = aggregate_string_array(tile.tags.clone().into_iter());
+    let on_tag = match tile.active {
+        true => crate::TILE_ON_MARKER,
+        false => "",
+    };
     format!(
-        r#"[#nm:"{nm}", #sz:point({sz}), #specs:[{specs}], #specs2:{specs2}, #tp:"{tp}", #repeatL:[{repeat}], #bfTiles:{bf_tiles}, #rnd:{rnd}, #ptPos:{pt_pos}, #tags:[{tags}]]"#
+        r#"[#nm:"{nm}", #sz:point({sz}), #specs:[{specs}], #specs2:{specs2}, #tp:"{tp}", #repeatL:[{repeat}], #bfTiles:{bf_tiles}, #rnd:{rnd}, #ptPos:{pt_pos}, #tags:[{tags}]]{on_tag}"#
     )
 }
 

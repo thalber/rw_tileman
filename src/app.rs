@@ -4,6 +4,7 @@ use egui::CollapsingHeader;
 
 use crate::{
     lingo_de::{self},
+    lingo_ser,
     utl::*,
     TileInfo, TileInit,
 };
@@ -21,14 +22,12 @@ pub struct TilemanApp {
 }
 
 impl TilemanApp {
-    pub fn new(_cc: &eframe::CreationContext) -> Result<Self, AppError> {
+    pub fn new(
+        _cc: &eframe::CreationContext,
+        root: PathBuf,
+        out: PathBuf,
+    ) -> Result<Self, AppError> {
         let mut errors = Vec::new();
-        let root = std::env::current_dir()
-            .expect("could not get wd")
-            .join("testfiles");
-        let out = std::env::current_dir()
-            .expect("could not get wd")
-            .join("testdumps");
         let additional_categories = lingo_de::collect_categories_from_subfolders(root.clone())
             .unwrap_or(Vec::new())
             .into_iter()
@@ -45,22 +44,11 @@ impl TilemanApp {
             all_tiles: lingo_de::parse_tile_init(
                 std::fs::read_to_string(root.join("init.txt")).unwrap(),
                 additional_categories,
+                root,
             )?,
             dumped_errors: false,
             output_path: out,
         })
-    }
-}
-
-impl Default for TilemanApp {
-    fn default() -> Self {
-        Self {
-            root: Default::default(),
-            selected_tile: Default::default(),
-            all_tiles: Default::default(),
-            dumped_errors: false,
-            output_path: Default::default(),
-        }
     }
 }
 
@@ -107,7 +95,14 @@ impl eframe::App for TilemanApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.horizontal(|ui| {
-                if ui.button("button1").clicked() {};
+                if ui.button("save inits").clicked() {
+                    let result = lingo_ser::rewrite_init(&self.all_tiles);
+                    std::fs::write(
+                        self.output_path.join("write_report.txt"),
+                        format!("{:#?}", result),
+                    )
+                    .expect("Could not write write errors");
+                };
                 // ui.button("button2");
                 // ui.button("button3");
                 // ui.button("button4");

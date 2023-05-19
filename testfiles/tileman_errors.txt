@@ -7,4 +7,20 @@
             got: "InvalidOrNull(\"WARNING: MISSING ITEM nm\")",
         },
     ),
+    (
+        "",
+        TypeMismatch {
+            key: "nm",
+            expected: "String",
+            got: "InvalidOrNull(\"WARNING: MISSING ITEM nm\")",
+        },
+    ),
+    (
+        "",
+        TypeMismatch {
+            key: "nm",
+            expected: "String",
+            got: "InvalidOrNull(\"WARNING: MISSING ITEM nm\")",
+        },
+    ),
 ]

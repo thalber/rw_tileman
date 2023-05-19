@@ -1,5 +1,8 @@
+use std::path::PathBuf;
+
 use cycle_map::CycleMap;
 use lingo_de::DeserError;
+use lingo_ser::SerError;
 
 pub mod app;
 pub mod lingo_de;
@@ -7,7 +10,9 @@ pub mod lingo_ser;
 mod utl;
 
 type ParseErrorReports = Vec<(String, DeserError)>;
+type SerErrorReports = Vec<(TileCategory, SerError)>;
 type PrimitiveColor = [u8; 3];
+
 
 #[cfg(test)]
 mod tests;
@@ -33,6 +38,7 @@ pub enum TileCell {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TileInit {
+    pub root: PathBuf,
     pub categories: Vec<TileCategory>,
     pub errored_lines: ParseErrorReports,
 }
@@ -73,7 +79,7 @@ impl PartialEq for TileInfo {
             && self.repeat_layers == other.repeat_layers
             && self.buffer_tiles == other.buffer_tiles
             && self.random_vars == other.random_vars
-            && self.preview_pos == other.preview_pos
+            //&& self.preview_pos == other.preview_pos
             && self.tags == other.tags
     }
 
@@ -93,15 +99,6 @@ impl PartialEq for TileCategory {
 
     fn ne(&self, other: &Self) -> bool {
         !self.eq(other)
-    }
-}
-
-impl Default for TileInit {
-    fn default() -> Self {
-        Self {
-            categories: Default::default(),
-            errored_lines: Default::default(),
-        }
     }
 }
 
@@ -157,6 +154,8 @@ impl TileType {
         lookup_static_cyclemap!(TILE_TYPE_STRINGS, get_right, self)
     }
 }
+
+const TILE_ON_MARKER: &str = "--TILE_ENABLED";
 
 thread_local! {
     static TILE_CELL_NUMBERS: CycleMap<TileCell, i32> = vec![

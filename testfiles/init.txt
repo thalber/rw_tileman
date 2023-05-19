@@ -1,7 +1,8 @@
--["Stone", color(210, 180, 180)]
-[#nm:"Small Stone", #sz:point(1,1), #specs:[1], #specs2:0, #tp:"voxelStructRockType", #bfTiles:1, #rnd:4, #ptPos:0, #tags:["nonSolid"]]
 
--["category-folder", color(210, 180, 180)]
-[#nm:"Square Stone", #sz:point(2,2), #specs:[1, 1, 1, 1], #specs2:0, #tp:"voxelStructRockType", #bfTiles:1, #rnd:3, #ptPos:0, #tags:[]]
-[#nm:"Tall Stone", #sz:point(2,3), #specs:[1, 1, 1, 1, 1, 1], #specs2:0, #tp:"voxelStructRockType", #bfTiles:1, #rnd:3, #ptPos:0, #tags:[]]		
-[#nm:"Wide Stone", #sz:point(3,2), #specs:[1, 1, 1, 1, 1, 1], #specs2:0, #tp:"voxelStructRockType", #bfTiles:1, #rnd:3, #ptPos:0, #tags:[]]
+
+-["Stone", color(0,0,0)]
+[#nm:"Small Stone", #sz:point(1,1), #specs:[1], #specs2:0, #tp:"voxelStructRockType", #repeatL:[0], #bfTiles:1, #rnd:4, #ptPos:0, #tags:["nonSolid"]]--TILE_ENABLED
+
+-["category-folder", color(255,0,0)]
+[#nm:"Big Stone Marked", #sz:point(3,3), #specs:[1,1,1,1,1,1,1,1,1], #specs2:[1,1,1,1,1,1,1,1,1], #tp:"voxelStructRockType", #repeatL:[0], #bfTiles:1, #rnd:3, #ptPos:0, #tags:[]]--TILE_ENABLED
+[#nm:"Rounded Rock", #sz:point(4,3), #specs:[3,1,5,1,1,1,1,1,1,2,1,4], #specs2:0, #tp:"voxelStructRockType", #repeatL:[0], #bfTiles:1, #rnd:3, #ptPos:0, #tags:[]]--TILE_ENABLED

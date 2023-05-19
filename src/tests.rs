@@ -1,6 +1,8 @@
+use std::path::Path;
+
 use crate::{
     lingo_de::{self, LingoData},
-    TileInit, lingo_ser,
+    lingo_ser, TileInit,
 };
 
 #[test]
@@ -11,7 +13,6 @@ pub fn ser_and_deser() {
     //assert_eq!(initial, ser.as_str());
     let de2 = lingo_de::parse_tile_info(ser.as_str(), false).unwrap();
     assert_eq!(de, de2);
-
 }
 
 #[test]
@@ -35,6 +36,7 @@ pub fn full_folder_deser() {
     let mut init = lingo_de::parse_tile_init(
         std::fs::read_to_string(path_in.join("init.txt")).unwrap(),
         additional_categories,
+        Default::default(),
     )
     .unwrap();
     init.errored_lines = init.errored_lines.into_iter().chain(errors).collect();
@@ -48,6 +50,7 @@ pub fn mass_deser_with_categories() {
     let des = lingo_de::parse_tile_init(
         std::fs::read_to_string("testfiles/mass_deser.txt").expect("could not read file"),
         Vec::new(),
+        Default::default(),
     )
     .unwrap();
     std::fs::write("testdumps/full_deser_out.txt", format!("{:#?}", des))

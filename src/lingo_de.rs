@@ -13,7 +13,6 @@ const REGEXSTR_STRING: &str = r#""([\w\d\s]*?)""#; //matches "-delimited strings
 const REGEXSTR_ARRAY: &str = r#"\[(.*?)\]"#; //matches stuff in square brackets. look at capture group 1 for contents
 const REGEXSTR_POINT: &str = r#"point\(([\d,]*?)\)"#; //matches lingo points. look at capture group 1  for contents
 const REGEXSTR_SPLITCOMMAS: &str = r#"\s*,\s*"#;
-const TILE_ON_MARKER: &str = "--TILE_ENABLED";
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum LingoData {
@@ -276,6 +275,7 @@ pub fn parse_category_header<'a>(text: &'a str) -> Result<TileCategory, DeserErr
 pub fn parse_tile_init<'a>(
     text: String,
     additional_categories: Vec<TileCategory>,
+    root: PathBuf,
 ) -> Result<TileInit, AppError> {
     let mut errored_lines = Vec::new();
     //let mut success_tiles = Vec::new();
@@ -323,6 +323,7 @@ pub fn parse_tile_init<'a>(
         .collect();
 
     Ok(TileInit {
+        root,
         categories,
         errored_lines,
     })
@@ -338,7 +339,7 @@ pub fn collect_categories_from_subfolders(
         static ref REGEX_SPLITCOMMAS: regex::Regex =
             regex::Regex::new(REGEXSTR_SPLITCOMMAS).unwrap();
     }
-    let x = std::fs::read_dir(root)
+    let x = std::fs::read_dir(root.clone())
         .into_iter()
         .flatten()
         //.into_iter()
@@ -361,7 +362,7 @@ pub fn collect_categories_from_subfolders(
                 let (tiles, errors) = parse_tile_info_multiple(contents.as_str()).ok()?;
                 return Some((
                     TileCategory::new_sub(
-                        entry.path().to_path_buf(),
+                        root.clone(),
                         entry.file_name().to_string_lossy().to_string(),
                         color,
                         tiles,
