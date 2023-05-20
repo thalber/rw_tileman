@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{fmt::Display, path::PathBuf, usize};
 
 use cycle_map::CycleMap;
 use lingo_de::DeserError;
@@ -12,7 +12,6 @@ mod utl;
 type DeserErrorReports = Vec<(String, DeserError)>;
 type SerErrorReports = Vec<(TileCategory, SerError)>;
 type PrimitiveColor = [u8; 3];
-
 
 #[cfg(test)]
 mod tests;
@@ -28,9 +27,13 @@ pub enum TileType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TileCell {
+    Any,
     Air,
     Wall,
-    Slope(usize),
+    SlopeBottomLeft,
+    SlopeBottomRight,
+    SlopeTopLeft,
+    SlopeTopRight,
     Floor,
     Entrance,
     Glass,
@@ -144,6 +147,10 @@ impl TileCell {
     pub fn as_number(&self) -> Result<i32, DeserError> {
         lookup_static_cyclemap!(TILE_CELL_NUMBERS, get_right, self)
     }
+
+    pub fn display_str(&self) -> Result<&'static str, DeserError> {
+        lookup_static_cyclemap!(TILE_CELL_DISPLAY, get_right, self)
+    }
 }
 
 impl TileType {
@@ -155,19 +162,81 @@ impl TileType {
     }
 }
 
+impl TileInfo {
+    pub fn display_cells(&self, take_specs2: bool) -> multiarray::Array2D<&'static str> {
+        let selected_specs = match take_specs2 {
+            false => Some(self.specs.clone()),
+            true => self.specs2.clone(),
+        };
+        if let Some(actual_specs) = selected_specs {
+            let xmax = *self.size.get(0).unwrap_or(&1);
+            let ymax = *self.size.get(1).unwrap_or(&1);
+            let mut res = multiarray::Array2D::new([xmax as usize, ymax as usize], "?_?");
+            //let mut specs_iter = actual_specs.into_iter();
+            for y in 0..ymax {
+                for x in 0..xmax {
+                    //let index = 0usize;
+                    let index = ((xmax * ymax) - (y + x * ymax + 1)) as usize;
+                    let cell = actual_specs.get(index).unwrap_or(&TileCell::Any);
+                    let display = cell.display_str().unwrap_or("?^?");
+                    res[[x as usize, y as usize]] = display;
+
+                    // 8 5 2
+                    // 7 4 1
+                    // 6 3 0
+
+                    // (0, 0) (1, 0) (2, 0)
+                    // (0, 1) (1, 1) (2, 1)
+                    // (0, 2) (1, 2) (2, 2)
+
+                    // 8 - (0x? + 0x1) = 8
+                    // 8 - (0x? + 1x1) = 7
+                    // 8 - (0x? + 2x1) = 6
+                    // 8 - (1x? + 0x1) = 5
+                    // 8 - (1x? + 1x1) = 4
+                    // 8 - (1x? + 2x1) = 3
+
+                    // let next = specs_iter.next();
+                    // let display = next
+                    //     .and_then(|cell| Some(cell.display_str().unwrap_or("ERR")))
+                    //     .unwrap_or("???");
+                    // res.push_str(display);
+                }
+                //res.push('\n')
+            }
+            return res;
+        };
+        multiarray::Array2D::new([0, 0], "")
+    }
+}
+
 const TILE_ON_MARKER: &str = "--TILE_ENABLED";
 
 thread_local! {
     static TILE_CELL_NUMBERS: CycleMap<TileCell, i32> = vec![
+        (TileCell::Any, -1),
         (TileCell::Air, 0),
         (TileCell::Wall, 1),
-        (TileCell::Slope(2), 2),
-        (TileCell::Slope(3), 3),
-        (TileCell::Slope(4), 4),
-        (TileCell::Slope(5), 5),
+        (TileCell::SlopeBottomLeft, 2),
+        (TileCell::SlopeBottomRight, 3),
+        (TileCell::SlopeTopLeft, 4),
+        (TileCell::SlopeTopRight, 5),
         (TileCell::Floor, 6),
         (TileCell::Entrance, 7),
         (TileCell::Glass, 9)
+        ].into_iter().collect();
+
+    static TILE_CELL_DISPLAY: CycleMap<TileCell, &'static str> = vec![
+        (TileCell::Any, "..."),
+        (TileCell::Air, "   "),
+        (TileCell::Wall, "[ ]"),
+        (TileCell::SlopeBottomLeft, " \\|"),
+        (TileCell::SlopeBottomRight, "|/ "),
+        (TileCell::SlopeTopLeft, " /|"),
+        (TileCell::SlopeTopRight, "|\\ "),
+        (TileCell::Floor, "==="),
+        (TileCell::Entrance, "< >"),
+        (TileCell::Glass, "{ }")
         ].into_iter().collect();
 
     static TILE_TYPE_STRINGS: CycleMap<TileType, &'static str> = vec![

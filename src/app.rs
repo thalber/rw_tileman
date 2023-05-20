@@ -130,6 +130,7 @@ impl eframe::App for TilemanApp {
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::TopBottomPanel::top("select_path").show(ctx, |ui| {
+            ui.label("Path to init");
             if ui.text_edit_singleline(&mut self.path_selection).changed() {
                 self.apply_loaded_data(Self::load_data(PathBuf::from(self.path_selection.clone())));
             }
@@ -137,48 +138,88 @@ impl eframe::App for TilemanApp {
 
         match &mut self.init {
             Some(init) => {
-                egui::TopBottomPanel::top("action_buttons").show(ctx, |ui| {
-                    ui.horizontal(|ui| {
-                        if ui.button("save inits").clicked() {
-                            let result = lingo_ser::rewrite_init(&init);
-                            std::fs::write(
-                                self.output_path.join("write_report.txt"),
-                                format!("{:#?}", result),
-                            )
-                            .expect("Could not write errors");
-                        };
-                    })
-                });
-                egui::SidePanel::right("right_panel").show(ctx, |ui| {
-                    ui.heading("tiles");
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        for category_index in indices(&init.categories) {
-                            let category = &mut init.categories[category_index];
-                            CollapsingHeader::new(category.name.as_str()).show(ui, |ui| {
-                                for item_index in indices(&category.tiles) {
-                                    let item = &mut category.tiles[item_index];
-                                    ui.horizontal(|ui| {
-                                        ui.checkbox(&mut item.active, "");
-                                        if ui.button(item.name.as_str()).clicked() {
-                                            println!("{}", item.name);
-                                            self.selected_tile = Some((category_index, item_index));
-                                        };
-                                    });
-                                }
-                            });
-                        }
-                    })
-                });
-
+                //draw action buttons
+                {
+                    egui::TopBottomPanel::top("action_buttons").show(ctx, |ui| {
+                        ui.horizontal(|ui| {
+                            if ui.button("save inits").clicked() {
+                                let result = lingo_ser::rewrite_init(&init);
+                                std::fs::write(
+                                    self.output_path.join("write_report.txt"),
+                                    format!("{:#?}", result),
+                                )
+                                .expect("Could not write errors");
+                            };
+                        })
+                    });
+                }
+                //draw tile list
+                {
+                    egui::SidePanel::right("tile_list").show(ctx, |ui| {
+                        ui.heading("tiles");
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            for category_index in indices(&init.categories) {
+                                let category = &mut init.categories[category_index];
+                                CollapsingHeader::new(category.name.as_str()).show(ui, |ui| {
+                                    for item_index in indices(&category.tiles) {
+                                        let item = &mut category.tiles[item_index];
+                                        ui.horizontal(|ui| {
+                                            ui.checkbox(&mut item.active, "");
+                                            if ui.button(item.name.as_str()).clicked() {
+                                                println!("{}", item.name);
+                                                self.selected_tile =
+                                                    Some((category_index, item_index));
+                                            };
+                                        });
+                                    }
+                                });
+                            }
+                        })
+                    });
+                }
+                //draw central panel
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    ui.heading("Path to init");
+                    //ui.heading("Path to init");
                     if let Some((category_index, item_index)) = self.selected_tile {
                         let maaaaybe_item = init
                             .categories
                             .get(category_index)
                             .map(|cat| cat.tiles.get(item_index));
                         if let Some(Some(item)) = maaaaybe_item {
-                            ui.label(format!("{:?}", item));
+                            ui.heading(item.name.as_str());
+                            ui.label("specs");
+                            let cells = item.display_cells(false);
+                            //let cells = item.display_cells(true);
+                            let dim = cells.extents();
+                            let xmax = *dim.get(0).unwrap_or(&1);
+                            let ymax = *dim.get(1).unwrap_or(&1);
+                            egui::Grid::new("specs_array").show(ui, |ui| {
+                                for y in 0..ymax {
+                                    for x in 0..xmax {
+                                        let cell = cells[[x, y]];
+                                        ui.label(cell);
+                                    }
+                                    ui.end_row();
+                                }
+                            });
+                            ui.label("specs2");
+                            let cells = item.display_cells(true);
+                            //let cells = item.display_cells(true);
+                            let dim = cells.extents();
+                            let xmax = *dim.get(0).unwrap_or(&1);
+                            let ymax = *dim.get(1).unwrap_or(&1);
+                            egui::Grid::new("specs2_array").show(ui, |ui| {
+                                for y in 0..ymax {
+                                    for x in 0..xmax {
+                                        let cell = cells[[x, y]];
+                                        ui.label(cell);
+                                    }
+                                    ui.end_row();
+                                }
+                            });
+                            //ui.label(item.display_cells(false));
+                            //ui.label(item.display_cells(true));
+                            //ui.label(format!("{:?}", item));
                         }
                     }
                 });
@@ -192,7 +233,7 @@ impl eframe::App for TilemanApp {
                     self.dumped_errors = true;
                 }
             }
-            None => { },
+            None => {}
         }
     }
 }
