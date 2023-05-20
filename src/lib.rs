@@ -9,7 +9,7 @@ pub mod lingo_de;
 pub mod lingo_ser;
 mod utl;
 
-type ParseErrorReports = Vec<(String, DeserError)>;
+type DeserErrorReports = Vec<(String, DeserError)>;
 type SerErrorReports = Vec<(TileCategory, SerError)>;
 type PrimitiveColor = [u8; 3];
 
@@ -40,7 +40,7 @@ pub enum TileCell {
 pub struct TileInit {
     pub root: PathBuf,
     pub categories: Vec<TileCategory>,
-    pub errored_lines: ParseErrorReports,
+    pub errored_lines: DeserErrorReports,
 }
 
 #[derive(Debug, Clone, Hash)]

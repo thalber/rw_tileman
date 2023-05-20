@@ -234,7 +234,7 @@ pub fn parse_tile_info<'a>(text: &'a str, force_enabled: bool) -> Result<TileInf
 
 pub fn parse_tile_info_multiple<'a>(
     text: &'a str,
-) -> Result<(Vec<TileInfo>, ParseErrorReports), DeserError> {
+) -> Result<(Vec<TileInfo>, DeserErrorReports), DeserError> {
     let mut errors = Vec::new();
     let mut tiles = Vec::new();
     for line in text.lines().filter(|line| !line.starts_with("--")) {
@@ -334,7 +334,7 @@ pub fn parse_tile_init<'a>(
 
 pub fn collect_categories_from_subfolders(
     root: std::path::PathBuf,
-) -> Result<Vec<(TileCategory, ParseErrorReports)>, DeserError> {
+) -> Result<Vec<(TileCategory, DeserErrorReports)>, DeserError> {
     lazy_static! {
         static ref REGEX_SPLITCOMMAS: regex::Regex =
             regex::Regex::new(REGEXSTR_SPLITCOMMAS).unwrap();

@@ -5,6 +5,7 @@ use crate::{
     lingo_ser, TileInit,
 };
 
+
 #[test]
 pub fn ser_and_deser() {
     let initial = r#"[#nm:"test_tile", #sz:point(2, 2), #specs:[1,1,1,1], #specs2:0, #tp:"voxelStruct", #repeatL:[10], #bfTiles:0, #rnd:1, #ptPos:0, #tags:["a", "b"]]"#;

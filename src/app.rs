@@ -1,23 +1,24 @@
 use std::path::PathBuf;
 
+use eframe::App;
 use egui::CollapsingHeader;
 
 use crate::{
-    lingo_de::{self},
+    lingo_de::{self, DeserError},
     lingo_ser,
     utl::*,
-    TileInfo, TileInit,
+    DeserErrorReports, TileInfo, TileInit,
 };
 #[derive(Debug)]
 pub enum AppError {
-    IOError(std::io::Error),
+    IOError(String),
     Todo,
 }
 pub struct TilemanApp {
-    root: PathBuf,
+    path_selection: String,
     output_path: PathBuf,
     selected_tile: Option<(usize, usize)>,
-    all_tiles: TileInit,
+    init: Option<TileInit>,
     dumped_errors: bool,
 }
 
@@ -27,6 +28,19 @@ impl TilemanApp {
         root: PathBuf,
         out: PathBuf,
     ) -> Result<Self, AppError> {
+        let init = None;
+        let maybe_init = Self::load_data(root.clone());
+        let mut tileman_app = Self {
+            selected_tile: Default::default(),
+            init,
+            dumped_errors: false,
+            output_path: out.clone(),
+            path_selection: root.to_string_lossy().into_owned(),
+        };
+        tileman_app.apply_loaded_data(maybe_init);
+        Ok(tileman_app)
+    }
+    fn load_data(root: PathBuf) -> Result<(TileInit, DeserErrorReports), AppError> {
         let mut errors = Vec::new();
         let additional_categories = lingo_de::collect_categories_from_subfolders(root.clone())
             .unwrap_or(Vec::new())
@@ -38,17 +52,39 @@ impl TilemanApp {
                 category
             })
             .collect();
-        Ok(Self {
-            root: root.clone(),
-            selected_tile: Default::default(),
-            all_tiles: lingo_de::parse_tile_init(
-                std::fs::read_to_string(root.join("init.txt")).unwrap(),
-                additional_categories,
-                root,
-            )?,
-            dumped_errors: false,
-            output_path: out,
-        })
+        let text = std::fs::read_to_string(root.join("init.txt"));
+        match text {
+            Ok(text) => {
+                let init = lingo_de::parse_tile_init(text, additional_categories, root)?;
+                return Ok((init, errors));
+            }
+            Err(err) => Err(AppError::IOError(format!("{:?}", err))),
+        }
+    }
+
+    fn apply_loaded_data(
+        &mut self,
+        maybe_init: Result<(TileInit, Vec<(String, DeserError)>), AppError>,
+    ) {
+        match maybe_init {
+            Ok((actual_init, errors)) => {
+                //init = Some(actual_init);
+                self.init = Some(actual_init);
+                std::fs::write(
+                    self.output_path.join("tileman_errors.txt"),
+                    format!("{:#?}", errors),
+                )
+                .expect("could not write errors");
+            }
+            Err(err) => {
+                self.init = None;
+                std::fs::write(
+                    self.output_path.join("tileman_errors.txt"),
+                    format!("{:?}", err),
+                )
+                .expect("could not write errors")
+            }
+        };
     }
 }
 
@@ -93,63 +129,70 @@ impl eframe::App for TilemanApp {
     fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &eframe::Frame) {}
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                if ui.button("save inits").clicked() {
-                    let result = lingo_ser::rewrite_init(&self.all_tiles);
-                    std::fs::write(
-                        self.output_path.join("write_report.txt"),
-                        format!("{:#?}", result),
-                    )
-                    .expect("Could not write write errors");
-                };
-                // ui.button("button2");
-                // ui.button("button3");
-                // ui.button("button4");
-            })
-        });
-        egui::SidePanel::right("right_panel").show(ctx, |ui| {
-            ui.heading("tiles");
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                for category_index in indices(&self.all_tiles.categories) {
-                    let category = &mut self.all_tiles.categories[category_index];
-                    CollapsingHeader::new(category.name.as_str()).show(ui, |ui| {
-                        for item_index in indices(&category.tiles) {
-                            let item = &mut category.tiles[item_index];
-                            ui.horizontal(|ui| {
-                                ui.checkbox(&mut item.active, "");
-                                if ui.button(item.name.as_str()).clicked() {
-                                    println!("{}", item.name);
-                                    self.selected_tile = Some((category_index, item_index));
-                                };
-                            });
-                        }
-                    });
-                }
-            })
-        });
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Path to init");
-            if let Some((category_index, item_index)) = self.selected_tile {
-                let maaaaybe_item = self
-                    .all_tiles
-                    .categories
-                    .get(category_index)
-                    .map(|cat| cat.tiles.get(item_index));
-                if let Some(Some(item)) = maaaaybe_item {
-                    ui.label(format!("{:?}", item));
-                }
+        egui::TopBottomPanel::top("select_path").show(ctx, |ui| {
+            if ui.text_edit_singleline(&mut self.path_selection).changed() {
+                self.apply_loaded_data(Self::load_data(PathBuf::from(self.path_selection.clone())));
             }
         });
 
-        if !self.dumped_errors {
-            std::fs::write(
-                self.root.join("tileman_errors.txt"),
-                format!("{:#?}", self.all_tiles.errored_lines),
-            )
-            .expect("could not write results");
-            self.dumped_errors = true;
+        match &mut self.init {
+            Some(init) => {
+                egui::TopBottomPanel::top("action_buttons").show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        if ui.button("save inits").clicked() {
+                            let result = lingo_ser::rewrite_init(&init);
+                            std::fs::write(
+                                self.output_path.join("write_report.txt"),
+                                format!("{:#?}", result),
+                            )
+                            .expect("Could not write errors");
+                        };
+                    })
+                });
+                egui::SidePanel::right("right_panel").show(ctx, |ui| {
+                    ui.heading("tiles");
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        for category_index in indices(&init.categories) {
+                            let category = &mut init.categories[category_index];
+                            CollapsingHeader::new(category.name.as_str()).show(ui, |ui| {
+                                for item_index in indices(&category.tiles) {
+                                    let item = &mut category.tiles[item_index];
+                                    ui.horizontal(|ui| {
+                                        ui.checkbox(&mut item.active, "");
+                                        if ui.button(item.name.as_str()).clicked() {
+                                            println!("{}", item.name);
+                                            self.selected_tile = Some((category_index, item_index));
+                                        };
+                                    });
+                                }
+                            });
+                        }
+                    })
+                });
+
+                egui::CentralPanel::default().show(ctx, |ui| {
+                    ui.heading("Path to init");
+                    if let Some((category_index, item_index)) = self.selected_tile {
+                        let maaaaybe_item = init
+                            .categories
+                            .get(category_index)
+                            .map(|cat| cat.tiles.get(item_index));
+                        if let Some(Some(item)) = maaaaybe_item {
+                            ui.label(format!("{:?}", item));
+                        }
+                    }
+                });
+
+                if !self.dumped_errors {
+                    std::fs::write(
+                        init.root.join("tileman_errors.txt"),
+                        format!("{:#?}", init.errored_lines),
+                    )
+                    .expect("could not write results");
+                    self.dumped_errors = true;
+                }
+            }
+            None => { },
         }
     }
 }
