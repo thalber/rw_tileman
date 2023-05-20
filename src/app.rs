@@ -226,7 +226,7 @@ impl eframe::App for TilemanApp {
 
                 if !self.dumped_errors {
                     std::fs::write(
-                        init.root.join("tileman_errors.txt"),
+                        self.output_path.join("tileman_errors.txt"),
                         format!("{:#?}", init.errored_lines),
                     )
                     .expect("could not write results");
