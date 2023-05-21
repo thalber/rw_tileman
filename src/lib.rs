@@ -172,35 +172,15 @@ impl TileInfo {
             let xmax = *self.size.get(0).unwrap_or(&1);
             let ymax = *self.size.get(1).unwrap_or(&1);
             let mut res = multiarray::Array2D::new([xmax as usize, ymax as usize], "?_?");
-            //let mut specs_iter = actual_specs.into_iter();
+            //mother of god why is it up-then-left
             for y in 0..ymax {
                 for x in 0..xmax {
-                    //let index = 0usize;
+                    
                     let index = ((xmax * ymax) - (y + x * ymax + 1)) as usize;
                     let cell = actual_specs.get(index).unwrap_or(&TileCell::Any);
                     let display = cell.display_str().unwrap_or("?^?");
                     res[[x as usize, y as usize]] = display;
 
-                    // 8 5 2
-                    // 7 4 1
-                    // 6 3 0
-
-                    // (0, 0) (1, 0) (2, 0)
-                    // (0, 1) (1, 1) (2, 1)
-                    // (0, 2) (1, 2) (2, 2)
-
-                    // 8 - (0x? + 0x1) = 8
-                    // 8 - (0x? + 1x1) = 7
-                    // 8 - (0x? + 2x1) = 6
-                    // 8 - (1x? + 0x1) = 5
-                    // 8 - (1x? + 1x1) = 4
-                    // 8 - (1x? + 2x1) = 3
-
-                    // let next = specs_iter.next();
-                    // let display = next
-                    //     .and_then(|cell| Some(cell.display_str().unwrap_or("ERR")))
-                    //     .unwrap_or("???");
-                    // res.push_str(display);
                 }
                 //res.push('\n')
             }

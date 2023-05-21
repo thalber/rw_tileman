@@ -70,6 +70,7 @@ impl TilemanApp {
             Ok((actual_init, errors)) => {
                 //init = Some(actual_init);
                 self.init = Some(actual_init);
+                self.dumped_errors = false;
                 std::fs::write(
                     self.output_path.join("tileman_errors.txt"),
                     format!("{:#?}", errors),
@@ -193,30 +194,35 @@ impl eframe::App for TilemanApp {
                             let dim = cells.extents();
                             let xmax = *dim.get(0).unwrap_or(&1);
                             let ymax = *dim.get(1).unwrap_or(&1);
-                            egui::Grid::new("specs_array").show(ui, |ui| {
-                                for y in 0..ymax {
-                                    for x in 0..xmax {
-                                        let cell = cells[[x, y]];
-                                        ui.label(cell);
+                            egui::Grid::new("specs_array")
+                                //.max_col_width(15.0)
+                                //.spacing((0.0, 0.0))
+                                .show(ui, |ui| {
+                                    for y in 0..ymax {
+                                        for x in 0..xmax {
+                                            let cell = cells[[x, y]];
+                                            ui.label(cell);
+                                        }
+                                        ui.end_row();
                                     }
-                                    ui.end_row();
-                                }
-                            });
+                                });
                             ui.label("specs2");
                             let cells = item.display_cells(true);
                             //let cells = item.display_cells(true);
                             let dim = cells.extents();
                             let xmax = *dim.get(0).unwrap_or(&1);
                             let ymax = *dim.get(1).unwrap_or(&1);
-                            egui::Grid::new("specs2_array").show(ui, |ui| {
-                                for y in 0..ymax {
-                                    for x in 0..xmax {
-                                        let cell = cells[[x, y]];
-                                        ui.label(cell);
+                            egui::Grid::new("specs2_array")
+                                //.max_col_width(15.0)
+                                .show(ui, |ui| {
+                                    for y in 0..ymax {
+                                        for x in 0..xmax {
+                                            let cell = cells[[x, y]];
+                                            ui.label(cell);
+                                        }
+                                        ui.end_row();
                                     }
-                                    ui.end_row();
-                                }
-                            });
+                                });
                             //ui.label(item.display_cells(false));
                             //ui.label(item.display_cells(true));
                             //ui.label(format!("{:?}", item));
