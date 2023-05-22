@@ -19,7 +19,7 @@ pub struct TilemanApp {
     output_path: PathBuf,
     selected_tile: Option<(usize, usize)>,
     init: Option<TileInit>,
-    dumped_errors: bool,
+    //dumped_errors: bool,
 }
 
 impl TilemanApp {
@@ -33,7 +33,7 @@ impl TilemanApp {
         let mut tileman_app = Self {
             selected_tile: Default::default(),
             init,
-            dumped_errors: false,
+            //dumped_errors: false,
             output_path: out.clone(),
             path_selection: root.to_string_lossy().into_owned(),
         };
@@ -70,7 +70,6 @@ impl TilemanApp {
             Ok((actual_init, errors)) => {
                 //init = Some(actual_init);
                 self.init = Some(actual_init);
-                self.dumped_errors = false;
                 std::fs::write(
                     self.output_path.join("tileman_errors.txt"),
                     format!("{:#?}", errors),
@@ -229,15 +228,6 @@ impl eframe::App for TilemanApp {
                         }
                     }
                 });
-
-                if !self.dumped_errors {
-                    std::fs::write(
-                        self.output_path.join("tileman_errors.txt"),
-                        format!("{:#?}", init.errored_lines),
-                    )
-                    .expect("could not write results");
-                    self.dumped_errors = true;
-                }
             }
             None => {}
         }
