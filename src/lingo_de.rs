@@ -1,4 +1,3 @@
-use egui::Color32;
 use lazy_static::lazy_static;
 
 use crate::{app::AppError, *};

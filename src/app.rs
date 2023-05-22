@@ -135,101 +135,101 @@ impl eframe::App for TilemanApp {
                 self.apply_loaded_data(Self::load_data(PathBuf::from(self.path_selection.clone())));
             }
         });
-
+        let output_path = self.output_path.clone();
+        let selected_tile = &mut self.selected_tile;
         match &mut self.init {
             Some(init) => {
                 //draw action buttons
-                {
-                    egui::TopBottomPanel::top("action_buttons").show(ctx, |ui| {
-                        ui.horizontal(|ui| {
-                            if ui.button("save inits").clicked() {
-                                let result = lingo_ser::rewrite_init(&init);
-                                std::fs::write(
-                                    self.output_path.join("write_report.txt"),
-                                    format!("{:#?}", result),
-                                )
-                                .expect("Could not write errors");
-                            };
-                        })
-                    });
-                }
+                egui::TopBottomPanel::top("action_buttons")
+                    .show(ctx, |ui| draw_action_buttons(ui, init, output_path));
                 //draw tile list
-                {
-                    egui::SidePanel::right("tile_list").show(ctx, |ui| {
-                        ui.heading("tiles");
-                        egui::ScrollArea::vertical().show(ui, |ui| {
-                            for category_index in indices(&init.categories) {
-                                let category = &mut init.categories[category_index];
-                                CollapsingHeader::new(category.name.as_str()).show(ui, |ui| {
-                                    for item_index in indices(&category.tiles) {
-                                        let item = &mut category.tiles[item_index];
-                                        ui.horizontal(|ui| {
-                                            ui.checkbox(&mut item.active, "");
-                                            if ui.button(item.name.as_str()).clicked() {
-                                                println!("{}", item.name);
-                                                self.selected_tile =
-                                                    Some((category_index, item_index));
-                                            };
-                                        });
-                                    }
-                                });
-                            }
-                        })
-                    });
-                }
+                egui::SidePanel::right("tile_list")
+                    .show(ctx, |ui| draw_tiles_panel(ui, init, selected_tile));
                 //draw central panel
                 egui::CentralPanel::default().show(ctx, |ui| {
                     //ui.heading("Path to init");
-                    if let Some((category_index, item_index)) = self.selected_tile {
-                        let maaaaybe_item = init
-                            .categories
-                            .get(category_index)
-                            .map(|cat| cat.tiles.get(item_index));
-                        if let Some(Some(item)) = maaaaybe_item {
-                            ui.heading(item.name.as_str());
-                            ui.label("specs");
-                            let cells = item.display_cells(false);
-                            //let cells = item.display_cells(true);
-                            let dim = cells.extents();
-                            let xmax = *dim.get(0).unwrap_or(&1);
-                            let ymax = *dim.get(1).unwrap_or(&1);
-                            egui::Grid::new("specs_array")
-                                //.max_col_width(15.0)
-                                //.spacing((0.0, 0.0))
-                                .show(ui, |ui| {
-                                    for y in 0..ymax {
-                                        for x in 0..xmax {
-                                            let cell = cells[[x, y]];
-                                            ui.label(cell);
-                                        }
-                                        ui.end_row();
-                                    }
-                                });
-                            ui.label("specs2");
-                            let cells = item.display_cells(true);
-                            //let cells = item.display_cells(true);
-                            let dim = cells.extents();
-                            let xmax = *dim.get(0).unwrap_or(&1);
-                            let ymax = *dim.get(1).unwrap_or(&1);
-                            egui::Grid::new("specs2_array")
-                                //.max_col_width(15.0)
-                                .show(ui, |ui| {
-                                    for y in 0..ymax {
-                                        for x in 0..xmax {
-                                            let cell = cells[[x, y]];
-                                            ui.label(cell);
-                                        }
-                                        ui.end_row();
-                                    }
-                                });
-                            //ui.label(item.display_cells(false));
-                            //ui.label(item.display_cells(true));
-                            //ui.label(format!("{:?}", item));
-                        }
-                    }
+                    draw_specs_previews(selected_tile, init, ui);
                 });
             }
             None => {}
         }
     }
+}
+
+fn draw_specs_previews(
+    selected_tile: &mut Option<(usize, usize)>,
+    init: &mut TileInit,
+    ui: &mut egui::Ui,
+) {
+    if let Some((category_index, item_index)) = selected_tile {
+        let maaaaybe_item = init
+            .categories
+            .get(*category_index)
+            .map(|cat| cat.tiles.get(*item_index));
+        if let Some(Some(item)) = maaaaybe_item {
+            macro_rules! draw_specs {
+                ($title:literal, $id:literal, $s2:literal) => {
+                    ui.heading(item.name.as_str());
+                    ui.label($title);
+                    let cells = item.display_cells($s2);
+                    let dim = cells.extents();
+                    let xmax = *dim.get(0).unwrap_or(&1);
+                    let ymax = *dim.get(1).unwrap_or(&1);
+                    egui::Grid::new($id).show(ui, |ui| {
+                        for y in 0..ymax {
+                            for x in 0..xmax {
+                                let cell = cells[[x, y]];
+                                ui.label(cell);
+                            }
+                            ui.end_row();
+                        }
+                    });
+                };
+            }
+            draw_specs!("specs", "specs_array", false);
+            draw_specs!("specs2", "specs2_array", true);
+        }
+    }
+}
+
+fn draw_tiles_panel(
+    ui: &mut egui::Ui,
+    init: &mut TileInit,
+    selected_tile: &mut Option<(usize, usize)>,
+) -> egui::scroll_area::ScrollAreaOutput<()> {
+    ui.heading("tiles");
+    egui::ScrollArea::vertical().show(ui, |ui| {
+        for category_index in indices(&init.categories) {
+            let category = &mut init.categories[category_index];
+            CollapsingHeader::new(category.name.as_str()).show(ui, |ui| {
+                for item_index in indices(&category.tiles) {
+                    let item = &mut category.tiles[item_index];
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut item.active, "");
+                        if ui.button(item.name.as_str()).clicked() {
+                            println!("{}", item.name);
+                            *selected_tile = Some((category_index, item_index));
+                        };
+                    });
+                }
+            });
+        }
+    })
+}
+
+fn draw_action_buttons(
+    ui: &mut egui::Ui,
+    init: &mut TileInit,
+    output_path: PathBuf,
+) -> egui::InnerResponse<()> {
+    ui.horizontal(|ui| {
+        if ui.button("save inits").clicked() {
+            let result = lingo_ser::rewrite_init(&init);
+            std::fs::write(
+                output_path.join("write_report.txt"),
+                format!("{:#?}", result),
+            )
+            .expect("Could not write errors");
+        };
+    })
 }
