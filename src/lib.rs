@@ -1,6 +1,6 @@
 use std::{fmt::Display, path::PathBuf, usize};
 
-use cycle_map::CycleMap;
+use cycle_map::{CycleMap, GroupMap};
 use lingo_de::DeserError;
 use lingo_ser::SerError;
 
@@ -142,7 +142,7 @@ macro_rules! lookup_static_cyclemap {
     ($map:ident, $func:ident, $lookup:expr) => {
         $map.with(|val| match val.$func($lookup) {
             Some(x) => Ok(x.clone()),
-            None => Err(DeserError::InvalidValue(format!("invalid value {:?}", val))),
+            None => Err(DeserError::InvalidValue(format!("invalid value {:?}", $lookup))),
         })
     };
 }
@@ -155,8 +155,12 @@ impl TileCell {
         lookup_static_cyclemap!(TILE_CELL_NUMBERS, get_right, self)
     }
 
-    pub fn display_str(&self) -> Result<&'static str, DeserError> {
-        lookup_static_cyclemap!(TILE_CELL_DISPLAY, get_right, self)
+    pub fn display_str(&self) -> &'static str {
+        lookup_static_cyclemap!(TILE_CELL_DISPLAY, get_right, self).expect("Something went horribly wrong on tile cell display string")
+    }
+
+    pub fn display_color(&self) -> PrimitiveColor {
+        lookup_static_cyclemap!(TILE_CELL_COLORS, get_right, self).expect("Something went horribly wrong on tile cell display color")
     }
 }
 
@@ -170,7 +174,7 @@ impl TileType {
 }
 
 impl TileInfo {
-    pub fn display_cells(&self, take_specs2: bool) -> multiarray::Array2D<&'static str> {
+    pub fn display_cells(&self, take_specs2: bool) -> multiarray::Array2D<TileCell> {
         let selected_specs = match take_specs2 {
             false => Some(self.specs.clone()),
             true => self.specs2.clone(),
@@ -178,20 +182,20 @@ impl TileInfo {
         if let Some(actual_specs) = selected_specs {
             let xmax = *self.size.get(0).unwrap_or(&1);
             let ymax = *self.size.get(1).unwrap_or(&1);
-            let mut res = multiarray::Array2D::new([xmax as usize, ymax as usize], "?_?");
+            let mut res = multiarray::Array2D::new([xmax as usize, ymax as usize], TileCell::Any);
             //mother of god why is it up-then-left
             for y in 0..ymax {
                 for x in 0..xmax {
                     let index = ((xmax * ymax) - (y + x * ymax + 1)) as usize;
                     let cell = actual_specs.get(index).unwrap_or(&TileCell::Any);
-                    let display = cell.display_str().unwrap_or("?^?");
-                    res[[x as usize, y as usize]] = display;
+                    //let display = cell.display_str();
+                    res[[x as usize, y as usize]] = cell.clone();
                 }
                 //res.push('\n')
             }
             return res;
         };
-        multiarray::Array2D::new([0, 0], "")
+        multiarray::Array2D::new([0, 0], TileCell::Any)
     }
 }
 
@@ -205,30 +209,43 @@ const TILE_ON_MARKER: &str = "--TILE_ENABLED";
 
 thread_local! {
     static TILE_CELL_NUMBERS: CycleMap<TileCell, i32> = vec![
-        (TileCell::Any, -1),
-        (TileCell::Air, 0),
-        (TileCell::Wall, 1),
-        (TileCell::SlopeBottomLeft, 2),
-        (TileCell::SlopeBottomRight, 3),
-        (TileCell::SlopeTopLeft, 4),
-        (TileCell::SlopeTopRight, 5),
-        (TileCell::Floor, 6),
-        (TileCell::Entrance, 7),
-        (TileCell::Glass, 9)
+        (TileCell::Any,                 -1),
+        (TileCell::Air,                 0),
+        (TileCell::Wall,                1),
+        (TileCell::SlopeBottomLeft,     2),
+        (TileCell::SlopeBottomRight,    3),
+        (TileCell::SlopeTopLeft,        4),
+        (TileCell::SlopeTopRight,       5),
+        (TileCell::Floor,               6),
+        (TileCell::Entrance,            7),
+        (TileCell::Glass,               9)
         ].into_iter().collect();
 
     static TILE_CELL_DISPLAY: CycleMap<TileCell, &'static str> = vec![
-        (TileCell::Any, "..."),
-        (TileCell::Air, "   "),
-        (TileCell::Wall, "[ ]"),
-        (TileCell::SlopeBottomLeft, " \\|"),
-        (TileCell::SlopeBottomRight, "|/ "),
-        (TileCell::SlopeTopLeft, " /|"),
-        (TileCell::SlopeTopRight, "|\\ "),
-        (TileCell::Floor, "==="),
-        (TileCell::Entrance, "< >"),
-        (TileCell::Glass, "{ }")
+        (TileCell::Any,                 "..."),
+        (TileCell::Air,                 "   "),
+        (TileCell::Wall,                "[ ]"),
+        (TileCell::SlopeBottomLeft,     " \\|"),
+        (TileCell::SlopeBottomRight,    "|/ "),
+        (TileCell::SlopeTopLeft,        " /|"),
+        (TileCell::SlopeTopRight,       "|\\ "),
+        (TileCell::Floor,               "==="),
+        (TileCell::Entrance,            "< >"),
+        (TileCell::Glass,               "{ }")
         ].into_iter().collect();
+
+    static TILE_CELL_COLORS: GroupMap<TileCell, PrimitiveColor> = vec![
+        (TileCell::Any,                 [255, 127, 127]),
+        (TileCell::Air,                 [255, 255, 255]),
+        (TileCell::Wall,                [000, 000, 000]),
+        (TileCell::SlopeBottomLeft,     [000, 064, 000]),
+        (TileCell::SlopeBottomRight,    [000, 064, 000]),
+        (TileCell::SlopeTopLeft,        [000, 064, 000]),
+        (TileCell::SlopeTopRight,       [000, 064, 000]),
+        (TileCell::Floor,               [064, 000, 000]),
+        (TileCell::Entrance,            [000, 255, 255]),
+        (TileCell::Glass,               [000, 000, 255]),
+    ].into_iter().collect();
 
     static TILE_TYPE_STRINGS: CycleMap<TileType, &'static str> = vec![
         (TileType::VoxelStruct, "voxelStruct"),
@@ -236,6 +253,6 @@ thread_local! {
         (TileType::VoxelStructDisplaceV, "voxelStructRandomDisplaceVertical"),
         (TileType::VoxelStructDisplaceH, "voxelStructRandomDisplaceHorizontal"),
         (TileType::Box, "box")
-
     ].into_iter().collect();
 }
+

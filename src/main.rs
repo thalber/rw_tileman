@@ -7,10 +7,14 @@ fn main() {
     let out = std::env::current_dir()
         .expect("could not get wd")
         .join("testdumps");
+    let mut native_options = eframe::NativeOptions::default();
+    native_options.multisampling = 0;
     match eframe::run_native(
         "rw_tileman",
-        eframe::NativeOptions::default(),
-        Box::new(|cc| Box::new(rw_tileman::app::TilemanApp::new(cc, root, out).unwrap())),
+        native_options,
+        Box::new(|cc| {
+            
+            Box::new(rw_tileman::app::TilemanApp::new(cc, root, out).unwrap())}),
     ) {
         Ok(_) => {}
         Err(err) => println!("failed to run app: {}", err),
