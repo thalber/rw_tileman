@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::{SerErrorReports, TileCategory, TileCell, TileInfo, TileInit};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -9,12 +11,15 @@ pub enum SerError {
 pub fn rewrite_init(init: &TileInit) -> Result<SerErrorReports, (SerError, SerErrorReports)> {
     println!("{:?}", init.root.to_string_lossy());
     let mut main_init_to_write = String::new();
-    let mut errors = SerErrorReports::new();
+    let mut errors = backup_init_files(init);
+
     for category in init.categories.clone() {
         let cat_text_for_main = serialize_category(&category, true)
             .into_iter()
             .fold(String::new(), |sum, new| format!("{sum}\n{new}"));
-        let cat_text_for_sub = serialize_category(&category, false).get(1..).unwrap_or(&[])
+        let cat_text_for_sub = serialize_category(&category, false)
+            .get(1..)
+            .unwrap_or(&[])
             .into_iter()
             .fold(String::new(), |sum, new| format!("{sum}\n{new}"));
 
@@ -30,10 +35,53 @@ pub fn rewrite_init(init: &TileInit) -> Result<SerErrorReports, (SerError, SerEr
             }
         };
     }
-    if let Err(err) = std::fs::write(init.root.join("init.txt"), main_init_to_write) {
+    let main_init_path = init.root.join("init.txt");
+    if let Err(err) = std::fs::write(main_init_path, main_init_to_write) {
         return Err((SerError::IOError(format!("{err}")), errors));
     };
     Ok(errors)
+}
+
+pub fn backup_init_files(init: &TileInit) -> SerErrorReports {
+    let mut res = SerErrorReports::new();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or(Duration::ZERO)
+        .as_secs();
+    let main_init_path = init.main_init_path();
+    let sub_init_paths = init
+        .categories
+        .iter()
+        .filter_map(|cat| cat.filepath().and_then(|fp| Some((cat.clone(), fp))));
+    for (category, init_path) in sub_init_paths.chain(
+        Some((
+            TileCategory {
+                enabled: false,
+                subfolder: None,
+                name: String::from("MAIN_INIT"),
+                color: [255, 0, 0],
+                tiles: Vec::new(),
+            },
+            main_init_path,
+        ))
+        .into_iter(),
+    ) {
+        if init_path.exists() && init_path.is_file() {
+            let newpath = init_path
+                .parent()
+                .expect("could not see parent directory")
+                .join(format!("init-backup-{}.txt", timestamp));
+            let copy_results = std::fs::copy(init_path, newpath);
+            match copy_results {
+                Err(err) => {
+                    res.push((category, SerError::IOError(format!("{}", err))));
+                }
+                Ok(_) => {}
+            }
+        }
+    }
+
+    res
 }
 
 pub fn serialize_category(category: &TileCategory, exclude_disabled: bool) -> Vec<String> {

@@ -106,6 +106,13 @@ impl PartialEq for TileCategory {
 }
 
 impl TileCategory {
+    pub fn filepath(&self) -> Option<PathBuf> {
+        match self.subfolder.clone() {
+            Some(sub) => Some(sub.join("init.txt")),
+            None => None,
+        }
+    }
+
     pub fn new_main(name: String, color: PrimitiveColor) -> Self {
         TileCategory {
             enabled: true,
@@ -175,18 +182,22 @@ impl TileInfo {
             //mother of god why is it up-then-left
             for y in 0..ymax {
                 for x in 0..xmax {
-                    
                     let index = ((xmax * ymax) - (y + x * ymax + 1)) as usize;
                     let cell = actual_specs.get(index).unwrap_or(&TileCell::Any);
                     let display = cell.display_str().unwrap_or("?^?");
                     res[[x as usize, y as usize]] = display;
-
                 }
                 //res.push('\n')
             }
             return res;
         };
         multiarray::Array2D::new([0, 0], "")
+    }
+}
+
+impl TileInit {
+    pub fn main_init_path(&self) -> PathBuf {
+        self.root.join("init.txt")
     }
 }
 
