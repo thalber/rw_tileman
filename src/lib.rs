@@ -51,6 +51,7 @@ pub struct TileCategory {
     pub name: String,
     pub color: PrimitiveColor,
     pub tiles: Vec<TileInfo>,
+    pub scheduled_move_to_sub: bool
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -118,6 +119,7 @@ impl TileCategory {
             name,
             color,
             tiles: Vec::new(),
+            scheduled_move_to_sub: false,
         }
     }
     pub fn new_sub(
@@ -125,13 +127,15 @@ impl TileCategory {
         name: String,
         color: PrimitiveColor,
         tiles: Vec<TileInfo>,
+        enabled: bool
     ) -> Self {
         TileCategory {
-            enabled: true,
+            enabled,
             subfolder: Some(root.join(name.clone())),
             name,
             color,
             tiles,
+            scheduled_move_to_sub: false
         }
     }
 }
@@ -204,6 +208,7 @@ impl TileInit {
 }
 
 const TILE_ON_MARKER: &str = "--TILE_ENABLED";
+const CATEGORY_ON_MARKER: &str = "--CATEGORY_ENABLED";
 
 thread_local! {
     static TILE_CELL_NUMBERS: CycleMap<TileCell, i32> = vec![

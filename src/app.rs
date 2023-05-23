@@ -162,7 +162,7 @@ impl eframe::App for TilemanApp {
             ui.label("Path to init");
             let text_input_response = ui.text_edit_singleline(&mut self.path_selection);
             if text_input_response
-                .on_hover_text("Enter (copy&paste) path to your editor's tile directory")
+                .on_hover_text_at_pointer("Enter (copy&paste) path to your editor's tile directory")
                 .changed()
             {
                 let root = std::path::PathBuf::from(self.path_selection.clone());
@@ -208,7 +208,9 @@ impl eframe::App for TilemanApp {
         }
         self.selected_tile_cache = self.selected_tile.clone();
         if self.reload_scheduled {
-            self.apply_loaded_data(Self::load_data(std::path::PathBuf::from(self.path_selection.clone())))
+            self.apply_loaded_data(Self::load_data(std::path::PathBuf::from(
+                self.path_selection.clone(),
+            )))
         }
         self.reload_scheduled = false;
     }
@@ -336,6 +338,7 @@ fn draw_tiles_panel(
                     list_tile_category(
                         ctx,
                         ui,
+                        &mut init.root,
                         category,
                         selected_tile,
                         selected_tile_cache,
@@ -343,7 +346,7 @@ fn draw_tiles_panel(
                     );
                 })
                 .header_response
-                .on_hover_text(match category.subfolder {
+                .on_hover_text_at_pointer(match category.subfolder {
                     Some(_) => "A subfolder",
                     None => "Exists in main init only",
                 });
@@ -354,15 +357,32 @@ fn draw_tiles_panel(
 fn list_tile_category(
     ctx: &egui::Context,
     ui: &mut egui::Ui,
+    root: &mut std::path::PathBuf,
     category: &mut crate::TileCategory,
     selected_tile: &mut Option<(usize, usize)>,
     selected_tile_cache: &mut Option<(usize, usize)>,
     category_index: usize,
 ) {
+    let is_folder = category.subfolder.is_some();
+    if is_folder {
+        ui.checkbox(&mut category.enabled, "Enable category");
+    }
+    if (!is_folder || category.scheduled_move_to_sub)
+        && ui
+            .checkbox(&mut category.scheduled_move_to_sub, "Convert to subfolder")
+            .on_hover_text_at_pointer("Move this category into a subfolder on write")
+            .changed()
+    {
+        if category.scheduled_move_to_sub {
+            category.subfolder = Some(root.clone().join(category.name.clone()));
+        } else {
+            category.subfolder = None;
+        }
+    };
     for item_index in indices(&category.tiles) {
         let item = &mut category.tiles[item_index];
         ui.horizontal(|ui| {
-            if category.subfolder.is_some() {
+            if is_folder {
                 ui.checkbox(&mut item.active, "");
             }
             if ui.button(item.name.as_str()).clicked() {
@@ -384,9 +404,10 @@ fn draw_toolbox(
     ui.horizontal(|ui| {
         if ui
             .button("save inits")
-            .on_hover_text("Write main and subfolder inits to disk (creates a backup)")
+            .on_hover_text_at_pointer("Write main and subfolder inits to disk (creates a backup)")
             .clicked()
         {
+            *reload_scheduled = true;
             let result = lingo_ser::rewrite_init(&init, output_path.clone());
             std::fs::write(
                 output_path.join("write_report.txt"),
@@ -395,12 +416,12 @@ fn draw_toolbox(
             .expect("Could not write errors");
         };
         if (ui.button("reload"))
-            .on_hover_text("Reload inits from disk")
+            .on_hover_text_at_pointer("Reload inits from disk")
             .clicked()
         {
             *reload_scheduled = true;
         }
         ui.add(egui::Slider::new(preview_scale, 5f32..=40f32))
-            .on_hover_text("Select tile preview scale");
+            .on_hover_text_at_pointer("Select tile preview scale");
     });
 }

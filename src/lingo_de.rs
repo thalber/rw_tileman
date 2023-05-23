@@ -358,6 +358,7 @@ pub fn collect_categories_from_subfolders(
                     colorsplit.next().unwrap_or(0u8),
                     colorsplit.next().unwrap_or(0u8),
                 ];
+                let enabled = contents.lines().any(|item| item == CATEGORY_ON_MARKER);
                 let (tiles, errors) = parse_tile_info_multiple(contents.as_str()).ok()?;
                 return Some((
                     TileCategory::new_sub(
@@ -365,6 +366,7 @@ pub fn collect_categories_from_subfolders(
                         entry.file_name().to_string_lossy().to_string(),
                         color,
                         tiles,
+                        enabled,
                     ),
                     errors,
                 ));

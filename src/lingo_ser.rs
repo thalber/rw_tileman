@@ -1,4 +1,4 @@
-use crate::{SerErrorReports, TileCategory, TileCell, TileInfo, TileInit};
+use crate::{SerErrorReports, TileCategory, TileCell, TileInfo, TileInit, CATEGORY_ON_MARKER};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SerError {
@@ -10,35 +10,45 @@ pub fn rewrite_init(
     init: &TileInit,
     output_path: std::path::PathBuf,
 ) -> Result<SerErrorReports, (SerError, SerErrorReports)> {
-    
-    //println!("{:?}", init.root.to_string_lossy());
+    let now = std::time::Instant::now();
     let mut main_init_to_write = String::new();
     let mut errors = backup_init_files(init);
     if errors.len() > 0 {
         std::fs::write(
             output_path.join("tileman_backup_errors.txt"),
-            format!("{:#?}", errors),
+            format!("{:#?}", (now, errors)),
         )
         .expect("Could not write error reports");
         panic!("Could not create init backups!")
     }
 
     for category in init.categories.clone() {
-        let cat_text_for_main = serialize_category(&category, true)
-            .into_iter()
-            .fold(String::new(), |sum, new| format!("{sum}\n{new}"));
+        let cat_text_for_main = match category.enabled {
+            true => serialize_category(&category, true)
+                .into_iter()
+                // .skip(match category.enabled {
+                //     true => 1,
+                //     false => 0,
+                // })
+                .fold(String::new(), |sum, new| format!("{sum}\n{new}")),
+            false => String::new(),
+        };
+
         let cat_text_for_sub = serialize_category(&category, false)
-            .get(1..)
-            .unwrap_or(&[])
+            //.get(1..)
+            //.unwrap_or(&[])
             .into_iter()
             .fold(String::new(), |sum, new| format!("{sum}\n{new}"));
 
         if category.enabled {
             main_init_to_write.push('\n');
             main_init_to_write.push_str(cat_text_for_main.as_str());
+            //cat_text_for_sub = format!("{}\n{}", CATEGORY_ON_MARKER, cat_text_for_sub);
         }
         if let Some(sub) = category.subfolder.clone() {
-            //println!("{}", sub.to_string_lossy());
+            if !sub.exists() {
+                std::fs::create_dir(sub.clone());
+            }
             let write_result = std::fs::write(sub.join("init.txt"), cat_text_for_sub);
             if let Err(err) = write_result {
                 errors.push((category.clone(), SerError::IOError(format!("{:?}", err))));
@@ -47,7 +57,13 @@ pub fn rewrite_init(
             //copy tile files
             let png_errors = category.tiles.iter().filter_map(|tile| {
                 let filename = format!("{}.png", tile.name);
-                match std::fs::copy(sub.join(filename.clone()), init.root.join(filename.clone())) {
+                let png_in_sub = sub.join(filename.clone());
+                let png_in_root = init.root.join(filename.clone());
+                let (from, to) = match category.scheduled_move_to_sub {
+                    true => (png_in_root, png_in_sub),
+                    false => (png_in_sub, png_in_root),
+                };
+                match std::fs::copy(from, to) {
                     Ok(_) => None,
                     Err(err) => Some((filename, err)),
                 }
@@ -86,6 +102,7 @@ pub fn backup_init_files(init: &TileInit) -> SerErrorReports {
                 name: String::from("MAIN_INIT"),
                 color: [255, 0, 0],
                 tiles: Vec::new(),
+                scheduled_move_to_sub: false,
             },
             main_init_path,
         ))
@@ -110,14 +127,10 @@ pub fn backup_init_files(init: &TileInit) -> SerErrorReports {
 }
 
 pub fn serialize_category(category: &TileCategory, exclude_disabled: bool) -> Vec<String> {
-    // let res = category
-    // .tiles
-    // .iter()
-    // .filter_map(|tile| match tile.active {
-    //     true => Some(serialize_tileinfo(tile)),
-    //     false => None,
-    // }).collect();
     let mut res = Vec::new();
+    if category.enabled {
+        res.push(String::from(CATEGORY_ON_MARKER))
+    }
     res.push(serialize_category_header(category));
     for item in category.tiles.iter().filter_map(|tile| {
         if !tile.active && exclude_disabled {
