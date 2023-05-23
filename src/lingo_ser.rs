@@ -8,10 +8,21 @@ pub enum SerError {
     Todo,
 }
 
-pub fn rewrite_init(init: &TileInit) -> Result<SerErrorReports, (SerError, SerErrorReports)> {
+pub fn rewrite_init(
+    init: &TileInit,
+    output_path: std::path::PathBuf,
+) -> Result<SerErrorReports, (SerError, SerErrorReports)> {
     println!("{:?}", init.root.to_string_lossy());
     let mut main_init_to_write = String::new();
     let mut errors = backup_init_files(init);
+    if errors.len() > 0 {
+        std::fs::write(
+            output_path.join("tileman_backup_errors.txt"),
+            format!("{:#?}", errors),
+        )
+        .expect("Could not write error reports");
+        panic!("Could not create init backups!")
+    }
 
     for category in init.categories.clone() {
         let cat_text_for_main = serialize_category(&category, true)
@@ -33,7 +44,22 @@ pub fn rewrite_init(init: &TileInit) -> Result<SerErrorReports, (SerError, SerEr
             if let Err(err) = write_result {
                 errors.push((category.clone(), SerError::IOError(format!("{:?}", err))));
             }
-        };
+
+            //copy tile files
+            let png_errors = category.tiles.iter().filter_map(|tile| {
+                let filename = format!("{}.png", tile.name);
+                match std::fs::copy(sub.join(filename.clone()), init.root.join(filename.clone())) {
+                    Ok(_) => None,
+                    Err(err) => Some((filename, err)),
+                }
+            });
+            for (filename, error) in png_errors {
+                errors.push((
+                    category.clone(),
+                    SerError::IOError(format!("Could not copy png for {}: {}", filename, error)),
+                ))
+            }
+        }
     }
     let main_init_path = init.root.join("init.txt");
     if let Err(err) = std::fs::write(main_init_path, main_init_to_write) {

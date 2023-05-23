@@ -8,19 +8,29 @@ use crate::{
     utl::*,
     DeserErrorReports, TileInfo, TileInit,
 };
+
+use serde::{Deserialize, Serialize};
+
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct AppPersistentConfig {
+    pub root_path: PathBuf,
+    pub output_path: PathBuf,
+}
 #[derive(Debug)]
 pub enum AppError {
     IOError(String),
     Todo,
 }
 pub struct TilemanApp {
-    path_selection: String,
-    output_path: PathBuf,
+    path_selection: String, //necessary because egui wants unicode strings
+    //output_path: PathBuf,
     selected_tile: Option<(usize, usize)>,
     selected_tile_cache: Option<(usize, usize)>,
     preview_cache: Option<PreviewCache>,
     preview_scale: f32,
     init: Option<TileInit>,
+    reload_scheduled: bool,
+    config: AppPersistentConfig,
 }
 
 #[derive(Clone)]
@@ -33,19 +43,20 @@ pub struct PreviewCache {
 impl TilemanApp {
     pub fn new(
         _cc: &eframe::CreationContext,
-        root: PathBuf,
-        out: PathBuf,
+        config: AppPersistentConfig,
     ) -> Result<Self, AppError> {
         let init = None;
-        let maybe_init = Self::load_data(root.clone());
+        let maybe_init = Self::load_data(config.root_path.clone());
         let mut tileman_app = Self {
             selected_tile: Default::default(),
             selected_tile_cache: None,
             init,
             preview_cache: None,
-            output_path: out.clone(),
-            path_selection: root.to_string_lossy().into_owned(),
+            //output_path: out.clone(),
+            path_selection: config.root_path.to_string_lossy().into_owned(),
             preview_scale: 20f32,
+            reload_scheduled: false,
+            config,
         };
         tileman_app.apply_loaded_data(maybe_init);
         Ok(tileman_app)
@@ -81,7 +92,7 @@ impl TilemanApp {
                 //init = Some(actual_init);
                 self.init = Some(actual_init);
                 std::fs::write(
-                    self.output_path.join("tileman_errors.txt"),
+                    self.config.output_path.join("tileman_errors.txt"),
                     format!("{:#?}", errors),
                 )
                 .expect("could not write errors");
@@ -89,7 +100,7 @@ impl TilemanApp {
             Err(err) => {
                 self.init = None;
                 std::fs::write(
-                    self.output_path.join("tileman_errors.txt"),
+                    self.config.output_path.join("tileman_errors.txt"),
                     format!("{:?}", err),
                 )
                 .expect("could not write errors")
@@ -102,6 +113,15 @@ impl eframe::App for TilemanApp {
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {}
 
     fn on_close_event(&mut self) -> bool {
+        if let Err(err) = std::fs::write(
+            std::env::current_dir()
+                .expect("could not get wd")
+                .join("tileman_config.json"),
+            serde_json::ser::to_string(&self.config).expect("could not serialize config"),
+        ) {
+            println!("{}", err);
+        }
+
         true
     }
 
@@ -146,20 +166,27 @@ impl eframe::App for TilemanApp {
 
         egui::TopBottomPanel::top("select_path").show(ctx, |ui| {
             ui.label("Path to init");
-            if ui.text_edit_singleline(&mut self.path_selection).changed() {
-                self.apply_loaded_data(Self::load_data(PathBuf::from(self.path_selection.clone())));
+            let text_input_response = ui.text_edit_singleline(&mut self.path_selection);
+            if text_input_response
+                .on_hover_text("Enter (copy&paste) path to your editor's tile directory")
+                .changed()
+            {
+                let root = PathBuf::from(self.path_selection.clone());
+                self.apply_loaded_data(Self::load_data(root.clone()));
+                self.config.root_path = root;
             }
         });
-        let output_path = self.output_path.clone();
+        let output_path = &mut self.config.output_path;
         let selected_tile = &mut self.selected_tile;
         let selected_tile_cache = &mut self.selected_tile_cache;
         let maybe_preview_cache = &mut self.preview_cache;
         let preview_scale = &mut self.preview_scale;
+        let reload_scheduled = &mut self.reload_scheduled;
         match &mut self.init {
             Some(init) => {
                 //draw action buttons
                 egui::TopBottomPanel::top("action_buttons").show(ctx, |ui| {
-                    draw_toolbox(ctx, ui, init, preview_scale, output_path)
+                    draw_toolbox(ctx, ui, init, preview_scale, reload_scheduled, output_path)
                 });
                 //draw tile list
                 egui::SidePanel::right("tile_list").show(ctx, |ui| {
@@ -185,6 +212,10 @@ impl eframe::App for TilemanApp {
             }
         }
         self.selected_tile_cache = self.selected_tile.clone();
+        if self.reload_scheduled {
+            self.apply_loaded_data(Self::load_data(PathBuf::from(self.path_selection.clone())))
+        }
+        self.reload_scheduled = false;
     }
 }
 
@@ -305,16 +336,22 @@ fn draw_tiles_panel(
     egui::ScrollArea::vertical().show(ui, |ui| {
         for category_index in indices(&init.categories) {
             let category = &mut init.categories[category_index];
-            CollapsingHeader::new(category.name.as_str()).show(ui, |ui| {
-                list_tile_category(
-                    ctx,
-                    ui,
-                    category,
-                    selected_tile,
-                    selected_tile_cache,
-                    category_index,
-                );
-            });
+            CollapsingHeader::new(category.name.as_str())
+                .show(ui, |ui| {
+                    list_tile_category(
+                        ctx,
+                        ui,
+                        category,
+                        selected_tile,
+                        selected_tile_cache,
+                        category_index,
+                    );
+                })
+                .header_response
+                .on_hover_text(match category.subfolder {
+                    Some(_) => "A subfolder",
+                    None => "Exists in main init only",
+                });
         }
     });
 }
@@ -330,7 +367,9 @@ fn list_tile_category(
     for item_index in indices(&category.tiles) {
         let item = &mut category.tiles[item_index];
         ui.horizontal(|ui| {
-            ui.checkbox(&mut item.active, "");
+            if category.subfolder.is_some() {
+                ui.checkbox(&mut item.active, "");
+            }
             if ui.button(item.name.as_str()).clicked() {
                 println!("{}", item.name);
                 *selected_tile = Some((category_index, item_index));
@@ -344,15 +383,29 @@ fn draw_toolbox(
     ui: &mut egui::Ui,
     init: &mut TileInit,
     preview_scale: &mut f32,
-    output_path: PathBuf,
+    reload_scheduled: &mut bool,
+    output_path: &mut PathBuf,
 ) {
-    if ui.button("save inits").clicked() {
-        let result = lingo_ser::rewrite_init(&init);
-        std::fs::write(
-            output_path.join("write_report.txt"),
-            format!("{:#?}", result),
-        )
-        .expect("Could not write errors");
-    };
-    ui.add(egui::Slider::new(preview_scale, 10f32..=40f32));
+    ui.horizontal(|ui| {
+        if ui
+            .button("save inits")
+            .on_hover_text("Write main and subfolder inits to disk (creates a backup)")
+            .clicked()
+        {
+            let result = lingo_ser::rewrite_init(&init, output_path.clone());
+            std::fs::write(
+                output_path.join("write_report.txt"),
+                format!("{:#?}", result),
+            )
+            .expect("Could not write errors");
+        };
+        if (ui.button("reload"))
+            .on_hover_text("Reload inits from disk")
+            .clicked()
+        {
+            *reload_scheduled = true;
+        }
+        ui.add(egui::Slider::new(preview_scale, 10f32..=40f32))
+            .on_hover_text("Select tile preview scale");
+    });
 }
