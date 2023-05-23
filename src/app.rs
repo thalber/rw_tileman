@@ -159,10 +159,10 @@ impl eframe::App for TilemanApp {
     fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &eframe::Frame) {}
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        ctx.tessellation_options_mut(|op| {
-            op.feathering = false;
-            op.feathering_size_in_pixels = 0f32;
-        });
+        // ctx.tessellation_options_mut(|op| {
+        //     op.feathering = false;
+        //     op.feathering_size_in_pixels = 0f32;
+        // });
 
         egui::TopBottomPanel::top("select_path").show(ctx, |ui| {
             ui.label("Path to init");
@@ -194,16 +194,17 @@ impl eframe::App for TilemanApp {
                 });
                 //draw central panel
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    //ui.heading("Path to init");
-                    draw_specs_previews(
-                        ctx,
-                        ui,
-                        selected_tile,
-                        selected_tile_cache,
-                        init,
-                        maybe_preview_cache,
-                        preview_scale,
-                    );
+                    egui::ScrollArea::both().show(ui, |ui| {
+                        draw_specs_previews(
+                            ctx,
+                            ui,
+                            selected_tile,
+                            selected_tile_cache,
+                            init,
+                            maybe_preview_cache,
+                            preview_scale,
+                        );
+                    })
                 });
             }
             None => {
