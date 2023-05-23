@@ -366,7 +366,7 @@ fn list_tile_category(
                 ui.checkbox(&mut item.active, "");
             }
             if ui.button(item.name.as_str()).clicked() {
-                println!("{}", item.name);
+                //println!("{}", item.name);
                 *selected_tile = Some((category_index, item_index));
             };
         });

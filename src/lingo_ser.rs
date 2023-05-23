@@ -10,7 +10,8 @@ pub fn rewrite_init(
     init: &TileInit,
     output_path: std::path::PathBuf,
 ) -> Result<SerErrorReports, (SerError, SerErrorReports)> {
-    println!("{:?}", init.root.to_string_lossy());
+    
+    //println!("{:?}", init.root.to_string_lossy());
     let mut main_init_to_write = String::new();
     let mut errors = backup_init_files(init);
     if errors.len() > 0 {
@@ -37,7 +38,7 @@ pub fn rewrite_init(
             main_init_to_write.push_str(cat_text_for_main.as_str());
         }
         if let Some(sub) = category.subfolder.clone() {
-            println!("{}", sub.to_string_lossy());
+            //println!("{}", sub.to_string_lossy());
             let write_result = std::fs::write(sub.join("init.txt"), cat_text_for_sub);
             if let Err(err) = write_result {
                 errors.push((category.clone(), SerError::IOError(format!("{:?}", err))));
