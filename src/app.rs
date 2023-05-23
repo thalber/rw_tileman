@@ -139,6 +139,11 @@ impl eframe::App for TilemanApp {
     fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &eframe::Frame) {}
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.tessellation_options_mut(|op| {
+            op.feathering = false;
+            op.feathering_size_in_pixels = 0f32;
+        });
+
         egui::TopBottomPanel::top("select_path").show(ctx, |ui| {
             ui.label("Path to init");
             if ui.text_edit_singleline(&mut self.path_selection).changed() {
@@ -157,8 +162,9 @@ impl eframe::App for TilemanApp {
                     draw_toolbox(ctx, ui, init, preview_scale, output_path)
                 });
                 //draw tile list
-                egui::SidePanel::right("tile_list")
-                    .show(ctx, |ui| draw_tiles_panel(ctx, ui, init, selected_tile, selected_tile_cache));
+                egui::SidePanel::right("tile_list").show(ctx, |ui| {
+                    draw_tiles_panel(ctx, ui, init, selected_tile, selected_tile_cache)
+                });
                 //draw central panel
                 egui::CentralPanel::default().show(ctx, |ui| {
                     //ui.heading("Path to init");
@@ -248,8 +254,6 @@ fn draw_specs_previews(
         }
         _ => (),
     };
-    
-    
 }
 
 fn create_specs_texture(
@@ -285,11 +289,9 @@ fn create_specs_texture(
         item.name.clone(),
         name.clone()
     );
-    ctx.load_texture(
-        name,
-        egui::ImageData::Color(image),
-        egui::TextureOptions::default(),
-    )
+    let mut options = egui::TextureOptions::default();
+    options.magnification = egui::TextureFilter::Nearest;
+    ctx.load_texture(name, egui::ImageData::Color(image), options)
 }
 
 fn draw_tiles_panel(
@@ -304,7 +306,14 @@ fn draw_tiles_panel(
         for category_index in indices(&init.categories) {
             let category = &mut init.categories[category_index];
             CollapsingHeader::new(category.name.as_str()).show(ui, |ui| {
-                list_tile_category(ctx, ui, category, selected_tile, selected_tile_cache, category_index);
+                list_tile_category(
+                    ctx,
+                    ui,
+                    category,
+                    selected_tile,
+                    selected_tile_cache,
+                    category_index,
+                );
             });
         }
     });
