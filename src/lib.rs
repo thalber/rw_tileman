@@ -1,5 +1,3 @@
-use std::{fmt::Display, path::PathBuf, usize};
-
 use cycle_map::{CycleMap, GroupMap};
 use lingo_de::DeserError;
 use lingo_ser::SerError;
@@ -41,7 +39,7 @@ pub enum TileCell {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TileInit {
-    pub root: PathBuf,
+    pub root: std::path::PathBuf,
     pub categories: Vec<TileCategory>,
     pub errored_lines: DeserErrorReports,
 }
@@ -106,7 +104,7 @@ impl PartialEq for TileCategory {
 }
 
 impl TileCategory {
-    pub fn filepath(&self) -> Option<PathBuf> {
+    pub fn filepath(&self) -> Option<std::path::PathBuf> {
         match self.subfolder.clone() {
             Some(sub) => Some(sub.join("init.txt")),
             None => None,
@@ -200,7 +198,7 @@ impl TileInfo {
 }
 
 impl TileInit {
-    pub fn main_init_path(&self) -> PathBuf {
+    pub fn main_init_path(&self) -> std::path::PathBuf {
         self.root.join("init.txt")
     }
 }

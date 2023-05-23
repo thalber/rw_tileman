@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::{
     lingo_de::{self, LingoData},
     lingo_ser, TileInit,

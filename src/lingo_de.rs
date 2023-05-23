@@ -274,7 +274,7 @@ pub fn parse_category_header<'a>(text: &'a str) -> Result<TileCategory, DeserErr
 pub fn parse_tile_init<'a>(
     text: String,
     additional_categories: Vec<TileCategory>,
-    root: PathBuf,
+    root: std::path::PathBuf,
 ) -> Result<TileInit, AppError> {
     let mut errored_lines = Vec::new();
     //let mut success_tiles = Vec::new();

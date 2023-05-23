@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use crate::{SerErrorReports, TileCategory, TileCell, TileInfo, TileInit};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -72,7 +70,7 @@ pub fn backup_init_files(init: &TileInit) -> SerErrorReports {
     let mut res = SerErrorReports::new();
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or(Duration::ZERO)
+        .unwrap_or(std::time::Duration::ZERO)
         .as_secs();
     let main_init_path = init.main_init_path();
     let sub_init_paths = init

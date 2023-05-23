@@ -1,7 +1,3 @@
-use std::path::PathBuf;
-
-use egui::{epaint::ImageDelta, CollapsingHeader, Color32, ImageData};
-
 use crate::{
     lingo_de::{self, DeserError},
     lingo_ser,
@@ -9,12 +5,10 @@ use crate::{
     DeserErrorReports, TileInfo, TileInit,
 };
 
-use serde::{Deserialize, Serialize};
-
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct AppPersistentConfig {
-    pub root_path: PathBuf,
-    pub output_path: PathBuf,
+    pub root_path: std::path::PathBuf,
+    pub output_path: std::path::PathBuf,
 }
 #[derive(Debug)]
 pub enum AppError {
@@ -61,7 +55,7 @@ impl TilemanApp {
         tileman_app.apply_loaded_data(maybe_init);
         Ok(tileman_app)
     }
-    fn load_data(root: PathBuf) -> Result<(TileInit, DeserErrorReports), AppError> {
+    fn load_data(root: std::path::PathBuf) -> Result<(TileInit, DeserErrorReports), AppError> {
         let mut errors = Vec::new();
         let additional_categories = lingo_de::collect_categories_from_subfolders(root.clone())
             .unwrap_or(Vec::new())
@@ -171,7 +165,7 @@ impl eframe::App for TilemanApp {
                 .on_hover_text("Enter (copy&paste) path to your editor's tile directory")
                 .changed()
             {
-                let root = PathBuf::from(self.path_selection.clone());
+                let root = std::path::PathBuf::from(self.path_selection.clone());
                 self.apply_loaded_data(Self::load_data(root.clone()));
                 self.config.root_path = root;
             }
@@ -214,7 +208,7 @@ impl eframe::App for TilemanApp {
         }
         self.selected_tile_cache = self.selected_tile.clone();
         if self.reload_scheduled {
-            self.apply_loaded_data(Self::load_data(PathBuf::from(self.path_selection.clone())))
+            self.apply_loaded_data(Self::load_data(std::path::PathBuf::from(self.path_selection.clone())))
         }
         self.reload_scheduled = false;
     }
@@ -337,7 +331,7 @@ fn draw_tiles_panel(
     egui::ScrollArea::vertical().show(ui, |ui| {
         for category_index in indices(&init.categories) {
             let category = &mut init.categories[category_index];
-            CollapsingHeader::new(category.name.as_str())
+            egui::CollapsingHeader::new(category.name.as_str())
                 .show(ui, |ui| {
                     list_tile_category(
                         ctx,
@@ -385,7 +379,7 @@ fn draw_toolbox(
     init: &mut TileInit,
     preview_scale: &mut f32,
     reload_scheduled: &mut bool,
-    output_path: &mut PathBuf,
+    output_path: &mut std::path::PathBuf,
 ) {
     ui.horizontal(|ui| {
         if ui
@@ -406,7 +400,7 @@ fn draw_toolbox(
         {
             *reload_scheduled = true;
         }
-        ui.add(egui::Slider::new(preview_scale, 10f32..=40f32))
+        ui.add(egui::Slider::new(preview_scale, 5f32..=40f32))
             .on_hover_text("Select tile preview scale");
     });
 }

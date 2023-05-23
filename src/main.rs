@@ -1,4 +1,3 @@
-use eframe::{self, App};
 use rw_tileman::app::AppPersistentConfig;
 
 fn main() {
