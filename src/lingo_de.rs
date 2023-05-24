@@ -53,6 +53,7 @@ impl LingoData {
             static ref REGEX_SPLITCOMMAS: regex::Regex =
                 regex::Regex::new(REGEXSTR_SPLITCOMMAS).unwrap();
         }
+        let text = text.trim(); //damn you random whitespaces
         let mut res = Ok(LingoData::InvalidOrNull(text.to_string()));
         if text.starts_with("[") && text.ends_with("]") {
             let spl = REGEX_SPLITCOMMAS.split(&text[1..text.len() - 1]);
@@ -68,7 +69,7 @@ impl LingoData {
             let spl = REGEX_SPLITCOMMAS.split(&text[6..text.len() - 1]);
             res = Ok(Self::Point(
                 spl.into_iter()
-                    .filter_map(|sub| match sub.parse::<i32>() {
+                    .filter_map(|sub| match sub.trim().parse::<i32>() {
                         Ok(num) => Some(num),
                         Err(_) => None,
                     })
