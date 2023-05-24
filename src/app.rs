@@ -2,7 +2,7 @@ use crate::{
     lingo_de::{self, DeserError},
     lingo_ser,
     utl::*,
-    DeserErrorReports, TileInfo, TileInit,
+    DeserErrorReports, TileCategoryChange, TileInfo, TileInit,
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -367,18 +367,53 @@ fn list_tile_category(
     if is_folder {
         ui.checkbox(&mut category.enabled, "Enable category");
     }
-    if (!is_folder || category.scheduled_move_to_sub)
-        && ui
-            .checkbox(&mut category.scheduled_move_to_sub, "Convert to subfolder")
-            .on_hover_text_at_pointer("Move this category into a subfolder on write")
-            .changed()
-    {
-        if category.scheduled_move_to_sub {
-            category.subfolder = Some(root.clone().join(category.name.clone()));
-        } else {
-            category.subfolder = None;
-        }
-    };
+    //format!("{}_change", category.name.clone()), 
+    egui::ComboBox::from_label("Change")
+        .selected_text(format!("{:?}", category.scheduled_change))
+        .show_ui(ui, |ui| {
+            macro_rules! add_choice {
+                ($item:ident) => {
+                    ui.selectable_value(
+                        &mut category.scheduled_change,
+                        TileCategoryChange::$item,
+                        stringify!($item),
+                    );        
+                };
+            }
+            add_choice!(None);
+            add_choice!(MoveFromSubfolder);
+            add_choice!(MoveToSubfolder);
+            add_choice!(Delete);
+        });
+        //.response
+    // if 
+        
+    // {
+    //     println!("{:?}, {:?}", category.scheduled_change, category.subfolder);
+    //     match category.scheduled_change {
+    //         TileCategoryChange::None => {}
+    //         TileCategoryChange::MoveToSubfolder => {
+    //             category.subfolder = Some(root.clone().join(category.name.clone()));
+    //         }
+    //         TileCategoryChange::Delete => {}
+    //         TileCategoryChange::MoveFromSubfolder => category.subfolder = None,
+    //     }
+    // };
+    // if ui.add(widget).changed() {
+
+    // }
+    // if (!is_folder || category.scheduled_move_to_sub)
+    //     && ui
+    //         .checkbox(&mut category.scheduled_move_to_sub, "Convert to subfolder")
+    //         .on_hover_text_at_pointer("Move this category into a subfolder on write")
+    //         .changed()
+    // {
+    //     if category.scheduled_move_to_sub {
+    //         category.subfolder = Some(root.clone().join(category.name.clone()));
+    //     } else {
+    //         category.subfolder = None;
+    //     }
+    // };
     for item_index in indices(&category.tiles) {
         let item = &mut category.tiles[item_index];
         ui.horizontal(|ui| {

@@ -44,6 +44,14 @@ pub struct TileInit {
     pub errored_lines: DeserErrorReports,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
+pub enum TileCategoryChange {
+    None,
+    MoveToSubfolder,
+    MoveFromSubfolder,
+    Delete
+}
+
 #[derive(Debug, Clone, Hash)]
 pub struct TileCategory {
     pub enabled: bool,
@@ -51,7 +59,8 @@ pub struct TileCategory {
     pub name: String,
     pub color: PrimitiveColor,
     pub tiles: Vec<TileInfo>,
-    pub scheduled_move_to_sub: bool
+    pub scheduled_change: TileCategoryChange
+    //pub scheduled_move_to_sub: bool
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -119,7 +128,8 @@ impl TileCategory {
             name,
             color,
             tiles: Vec::new(),
-            scheduled_move_to_sub: false,
+            scheduled_change: TileCategoryChange::None,
+            //scheduled_move_to_sub: false,
         }
     }
     pub fn new_sub(
@@ -135,7 +145,8 @@ impl TileCategory {
             name,
             color,
             tiles,
-            scheduled_move_to_sub: false
+            //scheduled_move_to_sub: false,
+            scheduled_change: TileCategoryChange::None,
         }
     }
 }

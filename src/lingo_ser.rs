@@ -1,4 +1,7 @@
-use crate::{SerErrorReports, TileCategory, TileCell, TileInfo, TileInit, CATEGORY_ON_MARKER};
+use crate::{
+    SerErrorReports, TileCategory, TileCategoryChange, TileCell, TileInfo, TileInit,
+    CATEGORY_ON_MARKER, lingo_ser,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SerError {
@@ -22,7 +25,23 @@ pub fn rewrite_init(
         panic!("Could not create init backups!")
     }
 
-    for category in init.categories.clone() {
+    for mut category in init
+        .categories
+        .clone()
+        .into_iter()
+        //.filter(|cat| cat.scheduled_change != TileCategoryChange::Delete)
+    {
+        match category.scheduled_change {
+            TileCategoryChange::None => {}
+            TileCategoryChange::MoveToSubfolder => {
+                category.subfolder = Some(init.root.join(category.name.clone()));
+            }
+            TileCategoryChange::Delete => {
+                
+            }
+            TileCategoryChange::MoveFromSubfolder => category.subfolder = None,
+        }
+        println!("{:?}, {:?}", category.scheduled_change, category.subfolder);
         let cat_text_for_main = match category.enabled {
             true => serialize_category(&category, true)
                 .into_iter()
@@ -46,10 +65,18 @@ pub fn rewrite_init(
             //cat_text_for_sub = format!("{}\n{}", CATEGORY_ON_MARKER, cat_text_for_sub);
         }
         if let Some(sub) = category.subfolder.clone() {
+            let init_path = sub.join("init.txt");
             if !sub.exists() {
-                std::fs::create_dir(sub.clone());
+                std::fs::create_dir(sub.clone())
+                    .expect(format!("could not create dir {:?}", sub.clone()).as_str());
             }
-            let write_result = std::fs::write(sub.join("init.txt"), cat_text_for_sub);
+            if let TileCategoryChange::Delete = category.scheduled_change {
+                if let Err(err) = std::fs::remove_file(init_path.clone()) {
+                    errors.push((category.clone(), lingo_ser::SerError::IOError(format!("{}", err))));
+                }
+            }
+
+            let write_result = std::fs::write(init_path, cat_text_for_sub);
             if let Err(err) = write_result {
                 errors.push((category.clone(), SerError::IOError(format!("{:?}", err))));
             }
@@ -59,9 +86,15 @@ pub fn rewrite_init(
                 let filename = format!("{}.png", tile.name);
                 let png_in_sub = sub.join(filename.clone());
                 let png_in_root = init.root.join(filename.clone());
-                let (from, to) = match category.scheduled_move_to_sub {
-                    true => (png_in_root, png_in_sub),
-                    false => (png_in_sub, png_in_root),
+                // let (from, to) = match category.scheduled_move_to_sub {
+                //     true => (png_in_root, png_in_sub),
+                //     false => (png_in_sub, png_in_root),
+                // };
+                let (from, to) = match category.scheduled_change {
+                    TileCategoryChange::None => (png_in_sub, png_in_root),
+                    TileCategoryChange::MoveToSubfolder => (png_in_root, png_in_sub),
+                    TileCategoryChange::Delete => (png_in_sub, png_in_root),
+                    TileCategoryChange::MoveFromSubfolder => (png_in_sub, png_in_root),
                 };
                 match std::fs::copy(from, to) {
                     Ok(_) => None,
@@ -102,7 +135,8 @@ pub fn backup_init_files(init: &TileInit) -> SerErrorReports {
                 name: String::from("MAIN_INIT"),
                 color: [255, 0, 0],
                 tiles: Vec::new(),
-                scheduled_move_to_sub: false,
+                scheduled_change: TileCategoryChange::None,
+                //scheduled_move_to_sub: false,
             },
             main_init_path,
         ))
