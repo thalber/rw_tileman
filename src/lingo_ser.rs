@@ -1,6 +1,6 @@
 use crate::{
-    SerErrorReports, TileCategory, TileCategoryChange, TileCell, TileInfo, TileInit,
-    CATEGORY_ON_MARKER, lingo_ser,
+    lingo_ser, SerErrorReports, TileCategory, TileCategoryChange, TileCell, TileInfo, TileInit,
+    CATEGORY_ON_MARKER,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -25,20 +25,15 @@ pub fn rewrite_init(
         panic!("Could not create init backups!")
     }
 
-    for mut category in init
-        .categories
-        .clone()
-        .into_iter()
-        //.filter(|cat| cat.scheduled_change != TileCategoryChange::Delete)
+    for mut category in init.categories.clone().into_iter()
+    //.filter(|cat| cat.scheduled_change != TileCategoryChange::Delete)
     {
         match category.scheduled_change {
             TileCategoryChange::None => {}
             TileCategoryChange::MoveToSubfolder => {
                 category.subfolder = Some(init.root.join(category.name.clone()));
             }
-            TileCategoryChange::Delete => {
-                
-            }
+            TileCategoryChange::Delete => {}
             TileCategoryChange::MoveFromSubfolder => category.subfolder = None,
         }
         println!("{:?}, {:?}", category.scheduled_change, category.subfolder);
@@ -72,7 +67,10 @@ pub fn rewrite_init(
             }
             if let TileCategoryChange::Delete = category.scheduled_change {
                 if let Err(err) = std::fs::remove_file(init_path.clone()) {
-                    errors.push((category.clone(), lingo_ser::SerError::IOError(format!("{}", err))));
+                    errors.push((
+                        category.clone(),
+                        lingo_ser::SerError::IOError(format!("{}", err)),
+                    ));
                 }
                 continue;
             }

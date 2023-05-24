@@ -254,19 +254,20 @@ pub fn parse_category_header<'a>(text: &'a str) -> Result<TileCategory, DeserErr
     }
     if let Some(caps) = REGEX_CATEGORY.captures(text) {
         let nm = &caps[1];
-        let col: Vec<u8> = REGEX_SPLITCOMMAS
-            .split(text)
+        let colstr = &caps[2];
+        let split = REGEX_SPLITCOMMAS.split(colstr);
+        let col: Vec<u8> = split
             .into_iter()
             .filter_map(|sub| sub.parse::<u8>().ok())
             .collect();
-        Ok(TileCategory::new_main(
-            nm.to_string(),
-            [
-                *col.get(0).unwrap_or(&0u8),
-                *col.get(1).unwrap_or(&0u8),
-                *col.get(2).unwrap_or(&0u8),
-            ],
-        ))
+        let color = [
+            *col.get(0).unwrap_or(&0u8),
+            *col.get(1).unwrap_or(&0u8),
+            *col.get(2).unwrap_or(&0u8),
+        ];
+
+        println!("{:?} {} ({})", color, nm, text);
+        Ok(TileCategory::new_main(nm.to_string(), color))
     } else {
         Err(DeserError::Todo)
     }
