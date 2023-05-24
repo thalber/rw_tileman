@@ -34,52 +34,51 @@ pub fn rewrite_init(
                 category.subfolder = Some(init.root.join(category.name.clone()));
             }
             TileCategoryChange::Delete => {}
-            TileCategoryChange::MoveFromSubfolder => category.subfolder = None,
+            _ => {} //TileCategoryChange::MoveFromSubfolder => category.subfolder = None,
         }
         println!("{:?}, {:?}", category.scheduled_change, category.subfolder);
-        let cat_text_for_main = match category.enabled {
-            true => serialize_category(&category, true)
-                .into_iter()
-                // .skip(match category.enabled {
-                //     true => 1,
-                //     false => 0,
-                // })
-                .fold(String::new(), |sum, new| format!("{sum}\n{new}")),
-            false => String::new(),
-        };
 
-        let cat_text_for_sub = serialize_category(&category, false)
-            //.get(1..)
-            //.unwrap_or(&[])
+        let cat_text_noexclude = serialize_category(&category, false)
             .into_iter()
             .fold(String::new(), |sum, new| format!("{sum}\n{new}"));
+        let cat_text_exclude = serialize_category(&category, true)
+            .into_iter()
+            .fold(String::new(), |sum, new| format!("{sum}\n{new}"));
+        let (mut cat_text_for_main, mut cat_text_for_sub) =
+            match (category.enabled, category.scheduled_change) {
+                (_, TileCategoryChange::Delete) => (String::new(), String::new()),
+                (true, TileCategoryChange::None) => (cat_text_exclude, cat_text_noexclude),
+                (false, TileCategoryChange::None) => (String::new(), cat_text_noexclude),
+                (true, TileCategoryChange::MoveToSubfolder) => {
+                    (cat_text_exclude, cat_text_noexclude)
+                }
+                (false, TileCategoryChange::MoveToSubfolder) => (String::new(), cat_text_noexclude),
+                (_, TileCategoryChange::MoveFromSubfolder) => (cat_text_noexclude, String::new()),
+            };
+        main_init_to_write.push('\n');
+        main_init_to_write.push_str(cat_text_for_main.as_str());
 
-        if category.enabled {
-            main_init_to_write.push('\n');
-            main_init_to_write.push_str(cat_text_for_main.as_str());
-            //cat_text_for_sub = format!("{}\n{}", CATEGORY_ON_MARKER, cat_text_for_sub);
-        }
         if let Some(sub) = category.subfolder.clone() {
             let init_path = sub.join("init.txt");
             if !sub.exists() {
                 std::fs::create_dir(sub.clone())
                     .expect(format!("could not create dir {:?}", sub.clone()).as_str());
             }
-            if let TileCategoryChange::Delete = category.scheduled_change {
-                if let Err(err) = std::fs::remove_file(init_path.clone()) {
-                    errors.push((
-                        category.clone(),
-                        lingo_ser::SerError::IOError(format!("{}", err)),
-                    ));
+            match category.scheduled_change {
+                TileCategoryChange::Delete | TileCategoryChange::MoveFromSubfolder => {
+                    if let Err(err) = std::fs::remove_file(init_path.clone()) {
+                        errors.push((
+                            category.clone(),
+                            lingo_ser::SerError::IOError(format!("{:?}", err)),
+                        ));
+                    };
                 }
-                continue;
+                _ => {
+                    if let Err(err) = std::fs::write(init_path, cat_text_for_sub) {
+                        errors.push((category.clone(), SerError::IOError(format!("{:?}", err))));
+                    }
+                }
             }
-
-            let write_result = std::fs::write(init_path, cat_text_for_sub);
-            if let Err(err) = write_result {
-                errors.push((category.clone(), SerError::IOError(format!("{:?}", err))));
-            }
-
             //copy tile files
             let png_errors = category.tiles.iter().filter_map(|tile| {
                 let filename = format!("{}.png", tile.name);
