@@ -74,6 +74,7 @@ pub fn rewrite_init(
                 if let Err(err) = std::fs::remove_file(init_path.clone()) {
                     errors.push((category.clone(), lingo_ser::SerError::IOError(format!("{}", err))));
                 }
+                continue;
             }
 
             let write_result = std::fs::write(init_path, cat_text_for_sub);
