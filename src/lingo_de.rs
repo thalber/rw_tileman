@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 
-use crate::{app::AppError, *};
+use crate::{app::AppError, utl::indices, *};
 use std::collections::HashMap;
 
 //todo: make sure support for negative numbers is not needed
@@ -11,7 +11,8 @@ const REGEXSTR_NUMBER: &str = r#"(-?\d+?)"#; //matches unsigned numbers. look at
 const REGEXSTR_STRING: &str = r#""([\w\d\s]*?)""#; //matches "-delimited strings. look at capture group 1 for contents
 const REGEXSTR_ARRAY: &str = r#"\[(.*?)\]"#; //matches stuff in square brackets. look at capture group 1 for contents
 const REGEXSTR_POINT: &str = r#"point\(([\d,]*?)\)"#; //matches lingo points. look at capture group 1  for contents
-const REGEXSTR_SPLITCOMMAS: &str = r#"\s*,\s*"#;
+const REGEXSTR_SPLITCOMMAS: &str = r#"\s*,\s*"#; //splits items by commas with spaces on either side
+const REGEXSTR_CATEGORY_INDEX: &str = r#"--CATEGORY_INDEX:(\d+)$"#;
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum LingoData {
@@ -251,6 +252,8 @@ pub fn parse_category_header<'a>(text: &'a str) -> Result<TileCategory, DeserErr
         static ref REGEX_CATEGORY: regex::Regex = regex::Regex::new(REGEXSTR_CATEGORY).unwrap();
         static ref REGEX_SPLITCOMMAS: regex::Regex =
             regex::Regex::new(REGEXSTR_SPLITCOMMAS).unwrap();
+        static ref REGEX_CATEGORY_INDEX: regex::Regex =
+            regex::Regex::new(REGEXSTR_CATEGORY_INDEX).unwrap();
     }
     if let Some(caps) = REGEX_CATEGORY.captures(text) {
         let nm = &caps[1];
@@ -265,9 +268,12 @@ pub fn parse_category_header<'a>(text: &'a str) -> Result<TileCategory, DeserErr
             *col.get(1).unwrap_or(&0u8),
             *col.get(2).unwrap_or(&0u8),
         ];
-
+        let index = match REGEX_CATEGORY_INDEX.captures(text) {
+            Some(caps) => caps[1].parse().unwrap_or(0),
+            None => 0,
+        };
         println!("{:?} {} ({})", color, nm, text);
-        Ok(TileCategory::new_main(nm.to_string(), color))
+        Ok(TileCategory::new_main(nm.to_string(), color, index))
     } else {
         Err(DeserError::Todo)
     }
@@ -281,7 +287,7 @@ pub fn parse_tile_init<'a>(
     let mut errored_lines = Vec::new();
     //let mut success_tiles = Vec::new();
     let mut current_category: TileCategory =
-        TileCategory::new_main(String::from("NO_CATEGORY"), [255, 0, 0]);
+        TileCategory::new_main(String::from("NO_CATEGORY"), [255, 0, 0], 0);
     //  {
     //     name: "NO_CATEGORY".to_string(),
     //     color: [255, 0, 0],
@@ -295,7 +301,9 @@ pub fn parse_tile_init<'a>(
         // if line.starts_with("--") || line.trim().is_empty() {
         //     continue;
         // } else
-        if line.starts_with("-[") && line.ends_with("]") {
+        if line.starts_with("-[")
+        /* && line.ends_with("]") */
+        {
             //let maybe_new_category = Err(DeserError::MissingValue);
             let maybe_new_category = parse_category_header(line);
             match maybe_new_category {
@@ -322,12 +330,19 @@ pub fn parse_tile_init<'a>(
         .filter(|cat| cat.tiles.len() > 0 && !additional_categories_clone.contains(cat))
         .chain(additional_categories)
         .collect();
-
-    Ok(TileInit {
+    for category_index in indices(&categories) {
+        let category = &mut categories[category_index];
+        if category.index == 0 {
+            category.index = category_index;
+        }
+    }
+    let mut tile_init = TileInit {
         root,
         categories,
         errored_lines,
-    })
+    };
+    tile_init.sort_and_normalize_categories();
+    Ok(tile_init)
 
     //Err(AppError::Todo)
     //Ok(res)
@@ -339,6 +354,8 @@ pub fn collect_categories_from_subfolders(
     lazy_static! {
         static ref REGEX_SPLITCOMMAS: regex::Regex =
             regex::Regex::new(REGEXSTR_SPLITCOMMAS).unwrap();
+        static ref REGEX_CATEGORY_INDEX: regex::Regex =
+            regex::Regex::new(REGEXSTR_CATEGORY_INDEX).unwrap();
     }
     let x = std::fs::read_dir(root.clone())
         .into_iter()
@@ -361,6 +378,12 @@ pub fn collect_categories_from_subfolders(
                     colorsplit.next().unwrap_or(0u8),
                 ];
                 let enabled = contents.lines().any(|item| item == CATEGORY_ON_MARKER);
+                let mut index = 0;
+                for line in contents.lines() {
+                    if let Some(caps) = REGEX_CATEGORY_INDEX.captures(line) {
+                        index = caps[1].parse().unwrap_or(1);
+                    }
+                }
                 let (tiles, errors) = parse_tile_info_multiple(contents.as_str()).ok()?;
                 return Some((
                     TileCategory::new_sub(
@@ -369,6 +392,7 @@ pub fn collect_categories_from_subfolders(
                         color,
                         tiles,
                         enabled,
+                        index,
                     ),
                     errors,
                 ));

@@ -1,6 +1,7 @@
 use cycle_map::{CycleMap, GroupMap};
 use lingo_de::DeserError;
 use lingo_ser::SerError;
+use utl::indices;
 
 pub mod app;
 pub mod lingo_de;
@@ -49,18 +50,18 @@ pub enum TileCategoryChange {
     None,
     MoveToSubfolder,
     MoveFromSubfolder,
-    Delete
+    Delete,
 }
 
 #[derive(Debug, Clone, Hash)]
 pub struct TileCategory {
+    pub index: usize,
     pub enabled: bool,
     pub subfolder: Option<std::path::PathBuf>,
     pub name: String,
     pub color: PrimitiveColor,
     pub tiles: Vec<TileInfo>,
-    pub scheduled_change: TileCategoryChange
-    //pub scheduled_move_to_sub: bool
+    pub scheduled_change: TileCategoryChange, //pub scheduled_move_to_sub: bool
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -121,7 +122,7 @@ impl TileCategory {
         }
     }
 
-    pub fn new_main(name: String, color: PrimitiveColor) -> Self {
+    pub fn new_main(name: String, color: PrimitiveColor, index: usize) -> Self {
         TileCategory {
             enabled: true,
             subfolder: None,
@@ -129,7 +130,7 @@ impl TileCategory {
             color,
             tiles: Vec::new(),
             scheduled_change: TileCategoryChange::None,
-            //scheduled_move_to_sub: false,
+            index,
         }
     }
     pub fn new_sub(
@@ -137,7 +138,8 @@ impl TileCategory {
         name: String,
         color: PrimitiveColor,
         tiles: Vec<TileInfo>,
-        enabled: bool
+        enabled: bool,
+        index: usize,
     ) -> Self {
         TileCategory {
             enabled,
@@ -147,6 +149,7 @@ impl TileCategory {
             tiles,
             //scheduled_move_to_sub: false,
             scheduled_change: TileCategoryChange::None,
+            index,
         }
     }
 }
@@ -155,7 +158,10 @@ macro_rules! lookup_static_cyclemap {
     ($map:ident, $func:ident, $lookup:expr) => {
         $map.with(|val| match val.$func($lookup) {
             Some(x) => Ok(x.clone()),
-            None => Err(DeserError::InvalidValue(format!("invalid value {:?}", $lookup))),
+            None => Err(DeserError::InvalidValue(format!(
+                "invalid value {:?}",
+                $lookup
+            ))),
         })
     };
 }
@@ -169,11 +175,13 @@ impl TileCell {
     }
 
     pub fn display_str(&self) -> &'static str {
-        lookup_static_cyclemap!(TILE_CELL_DISPLAY, get_right, self).expect("Something went horribly wrong on tile cell display string")
+        lookup_static_cyclemap!(TILE_CELL_DISPLAY, get_right, self)
+            .expect("Something went horribly wrong on tile cell display string")
     }
 
     pub fn display_color(&self) -> PrimitiveColor {
-        lookup_static_cyclemap!(TILE_CELL_COLORS, get_right, self).expect("Something went horribly wrong on tile cell display color")
+        lookup_static_cyclemap!(TILE_CELL_COLORS, get_right, self)
+            .expect("Something went horribly wrong on tile cell display color")
     }
 }
 
@@ -215,6 +223,13 @@ impl TileInfo {
 impl TileInit {
     pub fn main_init_path(&self) -> std::path::PathBuf {
         self.root.join("init.txt")
+    }
+    pub fn sort_and_normalize_categories(&mut self) {
+        self.categories
+            .sort_by(|cat1, cat2| cat1.index.cmp(&cat2.index));
+        for index in indices(&self.categories) {
+            self.categories[index].index = index;
+        }
     }
 }
 
@@ -269,4 +284,3 @@ thread_local! {
         (TileType::Box, "box")
     ].into_iter().collect();
 }
-

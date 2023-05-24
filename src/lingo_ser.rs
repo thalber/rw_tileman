@@ -134,6 +134,7 @@ pub fn backup_init_files(init: &TileInit) -> SerErrorReports {
                 color: [255, 0, 0],
                 tiles: Vec::new(),
                 scheduled_change: TileCategoryChange::None,
+                index: 0,
                 //scheduled_move_to_sub: false,
             },
             main_init_path,
@@ -179,7 +180,8 @@ pub fn serialize_category(category: &TileCategory, exclude_disabled: bool) -> Ve
 pub fn serialize_category_header(category: &TileCategory) -> String {
     let name = category.name.clone();
     let color = aggregate_number_array(category.color.clone().into_iter().map(|num| num as i32));
-    format!(r#"-["{name}", color({color})]"#)
+    let index = category.index;
+    format!(r#"-["{name}", color({color})]--CATEGORY_INDEX:{index}"#)
 }
 
 pub fn serialize_tileinfo(tile: &TileInfo) -> String {

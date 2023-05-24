@@ -11,6 +11,12 @@ pub struct AppPersistentConfig {
     pub output_path: std::path::PathBuf,
 }
 #[derive(Debug)]
+pub enum AppScheduledAction {
+    None,
+    Reload,
+    MoveCategory(usize, i32),
+}
+#[derive(Debug)]
 pub enum AppError {
     IOError(String),
     Todo,
@@ -23,7 +29,8 @@ pub struct TilemanApp {
     preview_cache: Option<PreviewCache>,
     preview_scale: f32,
     init: Option<TileInit>,
-    reload_scheduled: bool,
+    //reload_scheduled: bool,
+    scheduled_action: AppScheduledAction,
     config: AppPersistentConfig,
 }
 
@@ -49,7 +56,8 @@ impl TilemanApp {
             //output_path: out.clone(),
             path_selection: config.root_path.to_string_lossy().into_owned(),
             preview_scale: 20f32,
-            reload_scheduled: false,
+            //reload_scheduled: false,
+            scheduled_action: AppScheduledAction::None,
             config,
         };
         tileman_app.apply_loaded_data(maybe_init);
@@ -153,11 +161,6 @@ impl eframe::App for TilemanApp {
     fn post_rendering(&mut self, _window_size_px: [u32; 2], _frame: &eframe::Frame) {}
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // ctx.tessellation_options_mut(|op| {
-        //     op.feathering = false;
-        //     op.feathering_size_in_pixels = 0f32;
-        // });
-
         egui::TopBottomPanel::top("select_path").show(ctx, |ui| {
             ui.label("Path to init");
             let text_input_response = ui.text_edit_singleline(&mut self.path_selection);
@@ -175,16 +178,25 @@ impl eframe::App for TilemanApp {
         let selected_tile_cache = &mut self.selected_tile_cache;
         let maybe_preview_cache = &mut self.preview_cache;
         let preview_scale = &mut self.preview_scale;
-        let reload_scheduled = &mut self.reload_scheduled;
+        //let reload_scheduled = &mut self.reload_scheduled;
+        let scheduled_action = &mut self.scheduled_action;
         match &mut self.init {
             Some(init) => {
                 //draw action buttons
                 egui::TopBottomPanel::top("action_buttons").show(ctx, |ui| {
-                    draw_toolbox(ctx, ui, init, preview_scale, reload_scheduled, output_path)
+                    draw_toolbox(ctx, ui, init, preview_scale, scheduled_action, output_path)
                 });
                 //draw tile list
                 egui::SidePanel::right("tile_list").show(ctx, |ui| {
-                    draw_tiles_panel(ctx, ui, init, selected_tile, selected_tile_cache)
+                    draw_tiles_panel(
+                        ctx,
+                        ui,
+                        init,
+                        selected_tile,
+                        selected_tile_cache,
+                        scheduled_action,
+                    );
+                    //ui.set_width(width)
                 });
                 //draw central panel
                 egui::CentralPanel::default().show(ctx, |ui| {
@@ -207,12 +219,31 @@ impl eframe::App for TilemanApp {
             }
         }
         self.selected_tile_cache = self.selected_tile.clone();
-        if self.reload_scheduled {
-            self.apply_loaded_data(Self::load_data(std::path::PathBuf::from(
-                self.path_selection.clone(),
-            )))
+
+        match self.scheduled_action {
+            AppScheduledAction::None => {}
+            AppScheduledAction::Reload => self.apply_loaded_data(Self::load_data(
+                std::path::PathBuf::from(self.path_selection.clone()),
+            )),
+            AppScheduledAction::MoveCategory(old_index, by) => {
+                
+                if let Some(init) = &mut self.init {
+                    
+                    let new_index = (old_index as i32 + by).max(0) as usize;
+                    println!("moving {new_index} by {by}");
+                    init.categories[old_index].index = new_index;
+                    init.categories[new_index].index = old_index;
+                    init.sort_and_normalize_categories();
+                }
+            }
         }
-        self.reload_scheduled = false;
+        self.scheduled_action = AppScheduledAction::None;
+        // if self.reload_scheduled {
+        //     self.apply_loaded_data(Self::load_data(std::path::PathBuf::from(
+        //         self.path_selection.clone(),
+        //     )))
+        // }
+        // self.reload_scheduled = false;
     }
 }
 
@@ -328,6 +359,7 @@ fn draw_tiles_panel(
     init: &mut TileInit,
     selected_tile: &mut Option<(usize, usize)>,
     selected_tile_cache: &mut Option<(usize, usize)>,
+    scheduled_action: &mut AppScheduledAction,
 ) {
     ui.heading("tiles");
     egui::ScrollArea::vertical().show(ui, |ui| {
@@ -343,6 +375,7 @@ fn draw_tiles_panel(
                         selected_tile,
                         selected_tile_cache,
                         category_index,
+                        scheduled_action,
                     );
                 })
                 .header_response
@@ -362,12 +395,13 @@ fn list_tile_category(
     selected_tile: &mut Option<(usize, usize)>,
     selected_tile_cache: &mut Option<(usize, usize)>,
     category_index: usize,
+    scheduled_action: &mut AppScheduledAction,
 ) {
     let is_folder = category.subfolder.is_some();
     if is_folder {
         ui.checkbox(&mut category.enabled, "Enable category");
     }
-    //format!("{}_change", category.name.clone()), 
+    //format!("{}_change", category.name.clone()),
     egui::ComboBox::from_label("Change")
         .selected_text(format!("{:?}", category.scheduled_change))
         .show_ui(ui, |ui| {
@@ -377,7 +411,7 @@ fn list_tile_category(
                         &mut category.scheduled_change,
                         TileCategoryChange::$item,
                         stringify!($item),
-                    );        
+                    );
                 };
             }
             add_choice!(None);
@@ -385,35 +419,15 @@ fn list_tile_category(
             add_choice!(MoveToSubfolder);
             add_choice!(Delete);
         });
-        //.response
-    // if 
-        
-    // {
-    //     println!("{:?}, {:?}", category.scheduled_change, category.subfolder);
-    //     match category.scheduled_change {
-    //         TileCategoryChange::None => {}
-    //         TileCategoryChange::MoveToSubfolder => {
-    //             category.subfolder = Some(root.clone().join(category.name.clone()));
-    //         }
-    //         TileCategoryChange::Delete => {}
-    //         TileCategoryChange::MoveFromSubfolder => category.subfolder = None,
-    //     }
-    // };
-    // if ui.add(widget).changed() {
+    ui.horizontal(|ui| {
+        if ui.button("[ ^ ]").clicked() {
+            *scheduled_action = AppScheduledAction::MoveCategory(category_index, -1);
+        }
+        if ui.button("[ v ]").clicked() {
+            *scheduled_action = AppScheduledAction::MoveCategory(category_index, 1);
+        }
 
-    // }
-    // if (!is_folder || category.scheduled_move_to_sub)
-    //     && ui
-    //         .checkbox(&mut category.scheduled_move_to_sub, "Convert to subfolder")
-    //         .on_hover_text_at_pointer("Move this category into a subfolder on write")
-    //         .changed()
-    // {
-    //     if category.scheduled_move_to_sub {
-    //         category.subfolder = Some(root.clone().join(category.name.clone()));
-    //     } else {
-    //         category.subfolder = None;
-    //     }
-    // };
+    });
     for item_index in indices(&category.tiles) {
         let item = &mut category.tiles[item_index];
         ui.horizontal(|ui| {
@@ -433,7 +447,7 @@ fn draw_toolbox(
     ui: &mut egui::Ui,
     init: &mut TileInit,
     preview_scale: &mut f32,
-    reload_scheduled: &mut bool,
+    scheduled_action: &mut AppScheduledAction,
     output_path: &mut std::path::PathBuf,
 ) {
     ui.horizontal(|ui| {
@@ -442,7 +456,7 @@ fn draw_toolbox(
             .on_hover_text_at_pointer("Write main and subfolder inits to disk (creates a backup)")
             .clicked()
         {
-            *reload_scheduled = true;
+            *scheduled_action = AppScheduledAction::Reload;
             let result = lingo_ser::rewrite_init(&init, output_path.clone());
             std::fs::write(
                 output_path.join("write_report.txt"),
@@ -454,7 +468,7 @@ fn draw_toolbox(
             .on_hover_text_at_pointer("Reload inits from disk")
             .clicked()
         {
-            *reload_scheduled = true;
+            *scheduled_action = AppScheduledAction::Reload;
         }
         ui.add(egui::Slider::new(preview_scale, 5f32..=40f32))
             .on_hover_text_at_pointer("Select tile preview scale");
