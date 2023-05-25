@@ -420,10 +420,10 @@ fn list_tile_category(
             add_choice!(Delete);
         });
     ui.horizontal(|ui| {
-        if ui.button("[ ^ ]").clicked() {
+        if ui.button("[ ^ ]").on_hover_text_at_pointer("Move category up").clicked() {
             *scheduled_action = AppScheduledAction::MoveCategory(category_index, -1);
         }
-        if ui.button("[ v ]").clicked() {
+        if ui.button("[ v ]").on_hover_text("Move category down").clicked() {
             *scheduled_action = AppScheduledAction::MoveCategory(category_index, 1);
         }
 
