@@ -235,6 +235,7 @@ impl eframe::App for TilemanApp {
                     init.categories[new_index].index = old_index;
                     init.sort_and_normalize_categories();
                 }
+                self.selected_tile = None;
             }
         }
         self.scheduled_action = AppScheduledAction::None;
