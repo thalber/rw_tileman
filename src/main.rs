@@ -7,6 +7,7 @@ fn main() {
     let mut native_options = eframe::NativeOptions::default();
     native_options.multisampling = 0;
     native_options.follow_system_theme = true;
+    native_options.min_window_size = Some(egui::Vec2 { x: 600.0, y: 400.0 });
     let default_cfg = AppPersistentConfig {
         root_path: default_root,
         output_path: default_out,

@@ -296,66 +296,75 @@ fn draw_tile_details(
     maybe_preview_cache: &mut Option<PreviewCache>,
     changed_selection: bool,
 ) {
-    let mut maybe_remove = None;
-    for tag_index in indices(&item.tags) {
-        ui.horizontal(|ui| {
-            ui.text_edit_singleline(&mut item.tags[tag_index]);
-            if ui.button("remove").clicked() {
-                maybe_remove = Some(tag_index);
-            }
-        });
-    }
-    if (ui.button("Add tag")).clicked() {
-        item.tags.push(String::new())
-    }
-    if let Some(remove) = maybe_remove {
-        item.tags.remove(remove);
-    }
-    ui.add(egui::Slider::new(preview_scale, 5f32..=40f32))
-        .on_hover_text_at_pointer("Select tile preview scale");
+    ui.heading(item.name.clone());
+    
 
-    let (size_x, size_y) = (
-        *item.size.get(0).unwrap_or(&1) as usize,
-        *item.size.get(1).unwrap_or(&1) as usize,
-    );
-    egui::ScrollArea::both().show(ui, |ui| {
-        ui.heading("specs1");
-        let maybe_thandle_s1 = match (maybe_preview_cache.clone(), changed_selection) {
-            (Some(thandle), false) => Some(thandle.specs),
-            _ => None,
-        };
-        let thandle_s1 = maybe_thandle_s1.unwrap_or_else(|| create_specs_texture(ctx, item, false));
-        ui.image(
-            thandle_s1.id(),
-            egui::vec2(
-                size_x as f32 * *preview_scale,
-                size_y as f32 * *preview_scale,
-            ),
-        );
-        let mut maybe_thandle_s2 = match (maybe_preview_cache.clone(), changed_selection) {
-            (Some(thandle), false) => thandle.specs2,
-            _ => None,
-        };
-        if item.specs2.is_some() {
-            ui.heading("specs2");
-            maybe_thandle_s2 =
-                maybe_thandle_s2.or_else(|| Some(create_specs_texture(ctx, item, true)));
-            ui.image(
-                maybe_thandle_s2
-                    .clone()
-                    .expect("this should not happen: specs2 draw")
-                    .id(),
-                egui::vec2(
-                    size_x as f32 * *preview_scale,
-                    size_y as f32 * *preview_scale,
-                ),
-            );
-        }
-        *maybe_preview_cache = Some(PreviewCache {
-            specs: thandle_s1,
-            specs2: maybe_thandle_s2,
-        })
-    });
+    egui::ScrollArea::vertical()
+        .id_source("edit_tags_section")
+        .show(ui, |ui| {
+            let mut maybe_remove = None;
+            for tag_index in indices(&item.tags) {
+                ui.horizontal(|ui| {
+                    ui.text_edit_singleline(&mut item.tags[tag_index]);
+                    if ui.button("remove").clicked() {
+                        maybe_remove = Some(tag_index);
+                    }
+                });
+            }
+            if (ui.button("Add tag")).clicked() {
+                item.tags.push(String::new())
+            }
+            if let Some(remove) = maybe_remove {
+                item.tags.remove(remove);
+            }
+
+            egui::ScrollArea::horizontal()
+                .id_source("preview_specs_section")
+                .show(ui, |ui| {
+                    let (size_x, size_y) = (
+                        *item.size.get(0).unwrap_or(&1) as usize,
+                        *item.size.get(1).unwrap_or(&1) as usize,
+                    );
+                    ui.heading("specs1");
+                    let maybe_thandle_s1 = match (maybe_preview_cache.clone(), changed_selection) {
+                        (Some(thandle), false) => Some(thandle.specs),
+                        _ => None,
+                    };
+                    let thandle_s1 =
+                        maybe_thandle_s1.unwrap_or_else(|| create_specs_texture(ctx, item, false));
+                    ui.image(
+                        thandle_s1.id(),
+                        egui::vec2(
+                            size_x as f32 * *preview_scale,
+                            size_y as f32 * *preview_scale,
+                        ),
+                    );
+                    let mut maybe_thandle_s2 =
+                        match (maybe_preview_cache.clone(), changed_selection) {
+                            (Some(thandle), false) => thandle.specs2,
+                            _ => None,
+                        };
+                    if item.specs2.is_some() {
+                        ui.heading("specs2");
+                        maybe_thandle_s2 = maybe_thandle_s2
+                            .or_else(|| Some(create_specs_texture(ctx, item, true)));
+                        ui.image(
+                            maybe_thandle_s2
+                                .clone()
+                                .expect("this should not happen: specs2 draw")
+                                .id(),
+                            egui::vec2(
+                                size_x as f32 * *preview_scale,
+                                size_y as f32 * *preview_scale,
+                            ),
+                        );
+                    }
+                    *maybe_preview_cache = Some(PreviewCache {
+                        specs: thandle_s1,
+                        specs2: maybe_thandle_s2,
+                    })
+                });
+        });
 }
 
 fn create_specs_texture(
@@ -545,5 +554,7 @@ fn draw_toolbox(
         {
             *scheduled_action = AppScheduledAction::Reload;
         }
+        ui.add(egui::Slider::new(preview_scale, 5f32..=40f32))
+            .on_hover_text_at_pointer("Select tile preview scale");
     });
 }
