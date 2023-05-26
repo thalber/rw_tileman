@@ -22,8 +22,8 @@ pub enum AppError {
     Todo,
 }
 pub struct TilemanApp {
-    path_selection: String, //necessary because egui wants unicode strings
-    //output_path: PathBuf,
+    path_selection: String, //necessary duplicate because egui wants unicode strings
+    search_selection: String,
     selected_tile: Option<(usize, usize)>,
     selected_tile_cache: Option<(usize, usize)>,
     preview_cache: Option<PreviewCache>,
@@ -59,6 +59,7 @@ impl TilemanApp {
             //reload_scheduled: false,
             scheduled_action: AppScheduledAction::None,
             config,
+            search_selection: String::new(),
         };
         tileman_app.apply_loaded_data(maybe_init);
         Ok(tileman_app)
@@ -108,6 +109,12 @@ impl TilemanApp {
                 .expect("could not write errors")
             }
         };
+    }
+
+    fn clear_selection_and_cache(&mut self) {
+        self.selected_tile = None;
+        self.selected_tile_cache = None;
+        self.preview_cache = None;
     }
 }
 
@@ -180,6 +187,7 @@ impl eframe::App for TilemanApp {
         let preview_scale = &mut self.preview_scale;
         //let reload_scheduled = &mut self.reload_scheduled;
         let scheduled_action = &mut self.scheduled_action;
+        let search_selection = &mut self.search_selection;
         match &mut self.init {
             Some(init) => {
                 //draw action buttons
@@ -195,22 +203,21 @@ impl eframe::App for TilemanApp {
                         selected_tile,
                         selected_tile_cache,
                         scheduled_action,
+                        search_selection,
                     );
                     //ui.set_width(width)
                 });
                 //draw central panel
                 egui::CentralPanel::default().show(ctx, |ui| {
-                    egui::ScrollArea::both().show(ui, |ui| {
-                        draw_specs_previews(
-                            ctx,
-                            ui,
-                            selected_tile,
-                            selected_tile_cache,
-                            init,
-                            maybe_preview_cache,
-                            preview_scale,
-                        );
-                    })
+                    draw_central_panel(
+                        ctx,
+                        ui,
+                        selected_tile,
+                        selected_tile_cache,
+                        init,
+                        maybe_preview_cache,
+                        preview_scale,
+                    );
                 });
             }
             None => {
@@ -222,20 +229,21 @@ impl eframe::App for TilemanApp {
 
         match self.scheduled_action {
             AppScheduledAction::None => {}
-            AppScheduledAction::Reload => self.apply_loaded_data(Self::load_data(
-                std::path::PathBuf::from(self.path_selection.clone()),
-            )),
+            AppScheduledAction::Reload => {
+                self.apply_loaded_data(Self::load_data(std::path::PathBuf::from(
+                    self.path_selection.clone(),
+                )));
+                self.clear_selection_and_cache();
+            }
             AppScheduledAction::MoveCategory(old_index, by) => {
-                
                 if let Some(init) = &mut self.init {
-                    
                     let new_index = (old_index as i32 + by).max(0) as usize;
                     println!("moving {new_index} by {by}");
                     init.categories[old_index].index = new_index;
                     init.categories[new_index].index = old_index;
                     init.sort_and_normalize_categories();
                 }
-                self.selected_tile = None;
+                self.clear_selection_and_cache();
             }
         }
         self.scheduled_action = AppScheduledAction::None;
@@ -248,7 +256,7 @@ impl eframe::App for TilemanApp {
     }
 }
 
-fn draw_specs_previews(
+fn draw_central_panel(
     ctx: &egui::Context,
     ui: &mut egui::Ui,
     selected_tile: &mut Option<(usize, usize)>,
@@ -261,59 +269,93 @@ fn draw_specs_previews(
     let changed_selection = *selected_tile != *selected_tile_cache;
     match selected_tile {
         Some((category_index, item_index)) => {
-            let maaaybe_item = init
+            if let Some(Some(item)) = init
                 .categories
-                .get(*category_index)
-                .map(|cat| cat.tiles.get(*item_index));
-            if let Some(Some(item)) = maaaybe_item {
-                let (size_x, size_y) = (
-                    *item.size.get(0).unwrap_or(&1) as usize,
-                    *item.size.get(1).unwrap_or(&1) as usize,
+                .get_mut(*category_index)
+                .map(|cat| cat.tiles.get_mut(*item_index))
+            {
+                draw_tile_details(
+                    ctx,
+                    ui,
+                    preview_scale,
+                    item,
+                    maybe_preview_cache,
+                    changed_selection,
                 );
-                ui.heading("specs1");
-                let maybe_thandle_s1 = match (maybe_preview_cache.clone(), changed_selection) {
-                    (Some(thandle), false) => Some(thandle.specs),
-                    _ => None,
-                };
-                let thandle_s1 =
-                    maybe_thandle_s1.unwrap_or_else(|| create_specs_texture(ctx, item, false));
-                ui.image(
-                    thandle_s1.id(),
-                    egui::vec2(
-                        size_x as f32 * *preview_scale,
-                        size_y as f32 * *preview_scale,
-                    ),
-                );
-
-                let mut maybe_thandle_s2 = match (maybe_preview_cache.clone(), changed_selection) {
-                    (Some(thandle), false) => thandle.specs2,
-                    _ => None,
-                };
-
-                if item.specs2.is_some() {
-                    ui.heading("specs2");
-                    maybe_thandle_s2 =
-                        maybe_thandle_s2.or_else(|| Some(create_specs_texture(ctx, item, true)));
-                    ui.image(
-                        maybe_thandle_s2
-                            .clone()
-                            .expect("this should not happen: specs2 draw")
-                            .id(),
-                        egui::vec2(
-                            size_x as f32 * *preview_scale,
-                            size_y as f32 * *preview_scale,
-                        ),
-                    );
-                }
-
-                *maybe_preview_cache = Some(PreviewCache {
-                    specs: thandle_s1,
-                    specs2: maybe_thandle_s2,
-                })
             }
         }
         _ => (),
     };
+}
+
+fn draw_tile_details(
+    ctx: &egui::Context,
+    ui: &mut egui::Ui,
+    preview_scale: &mut f32,
+    item: &mut TileInfo,
+    maybe_preview_cache: &mut Option<PreviewCache>,
+    changed_selection: bool,
+) {
+    let mut maybe_remove = None;
+    for tag_index in indices(&item.tags) {
+        ui.horizontal(|ui| {
+            ui.text_edit_singleline(&mut item.tags[tag_index]);
+            if ui.button("remove").clicked() {
+                maybe_remove = Some(tag_index);
+            }
+        });
+    }
+    if (ui.button("Add tag")).clicked() {
+        item.tags.push(String::new())
+    }
+    if let Some(remove) = maybe_remove {
+        item.tags.remove(remove);
+    }
+    ui.add(egui::Slider::new(preview_scale, 5f32..=40f32))
+        .on_hover_text_at_pointer("Select tile preview scale");
+
+    let (size_x, size_y) = (
+        *item.size.get(0).unwrap_or(&1) as usize,
+        *item.size.get(1).unwrap_or(&1) as usize,
+    );
+    egui::ScrollArea::both().show(ui, |ui| {
+        ui.heading("specs1");
+        let maybe_thandle_s1 = match (maybe_preview_cache.clone(), changed_selection) {
+            (Some(thandle), false) => Some(thandle.specs),
+            _ => None,
+        };
+        let thandle_s1 = maybe_thandle_s1.unwrap_or_else(|| create_specs_texture(ctx, item, false));
+        ui.image(
+            thandle_s1.id(),
+            egui::vec2(
+                size_x as f32 * *preview_scale,
+                size_y as f32 * *preview_scale,
+            ),
+        );
+        let mut maybe_thandle_s2 = match (maybe_preview_cache.clone(), changed_selection) {
+            (Some(thandle), false) => thandle.specs2,
+            _ => None,
+        };
+        if item.specs2.is_some() {
+            ui.heading("specs2");
+            maybe_thandle_s2 =
+                maybe_thandle_s2.or_else(|| Some(create_specs_texture(ctx, item, true)));
+            ui.image(
+                maybe_thandle_s2
+                    .clone()
+                    .expect("this should not happen: specs2 draw")
+                    .id(),
+                egui::vec2(
+                    size_x as f32 * *preview_scale,
+                    size_y as f32 * *preview_scale,
+                ),
+            );
+        }
+        *maybe_preview_cache = Some(PreviewCache {
+            specs: thandle_s1,
+            specs2: maybe_thandle_s2,
+        })
+    });
 }
 
 fn create_specs_texture(
@@ -361,7 +403,11 @@ fn draw_tiles_panel(
     selected_tile: &mut Option<(usize, usize)>,
     selected_tile_cache: &mut Option<(usize, usize)>,
     scheduled_action: &mut AppScheduledAction,
+    search_selection: &mut String,
 ) {
+    ui.label("search");
+    ui.text_edit_singleline(search_selection)
+        .on_hover_text_at_pointer("Search tiles");
     ui.heading("tiles");
     egui::ScrollArea::vertical().show(ui, |ui| {
         for category_index in indices(&init.categories) {
@@ -377,6 +423,7 @@ fn draw_tiles_panel(
                         selected_tile_cache,
                         category_index,
                         scheduled_action,
+                        search_selection,
                     );
                 })
                 .header_response
@@ -397,6 +444,7 @@ fn list_tile_category(
     selected_tile_cache: &mut Option<(usize, usize)>,
     category_index: usize,
     scheduled_action: &mut AppScheduledAction,
+    search_selection: &mut String,
 ) {
     let is_folder = category.subfolder.is_some();
     if is_folder {
@@ -421,16 +469,26 @@ fn list_tile_category(
             add_choice!(Delete);
         });
     ui.horizontal(|ui| {
-        if ui.button("[ ^ ]").on_hover_text_at_pointer("Move category up").clicked() {
+        if ui
+            .button("[ ^ ]")
+            .on_hover_text_at_pointer("Move category up")
+            .clicked()
+        {
             *scheduled_action = AppScheduledAction::MoveCategory(category_index, -1);
         }
-        if ui.button("[ v ]").on_hover_text("Move category down").clicked() {
+        if ui
+            .button("[ v ]")
+            .on_hover_text("Move category down")
+            .clicked()
+        {
             *scheduled_action = AppScheduledAction::MoveCategory(category_index, 1);
         }
-
     });
     for item_index in indices(&category.tiles) {
         let item = &mut category.tiles[item_index];
+        if !tile_info_matches_search(item, search_selection) {
+            continue;
+        }
         ui.horizontal(|ui| {
             if is_folder {
                 ui.checkbox(&mut item.active, "");
@@ -441,6 +499,22 @@ fn list_tile_category(
             };
         });
     }
+}
+
+fn tile_info_matches_search(item: &TileInfo, search_selection: &String) -> bool {
+    if search_selection.is_empty() {
+        return true;
+    }
+    name_matches_search(&item.name, search_selection)
+        || item
+            .tags
+            .iter()
+            .any(|tag| name_matches_search(tag, search_selection))
+}
+
+fn name_matches_search(item: &String, search_selection: &String) -> bool {
+    item.to_lowercase()
+        .contains(search_selection.as_str().to_lowercase().as_str())
 }
 
 fn draw_toolbox(
@@ -471,7 +545,5 @@ fn draw_toolbox(
         {
             *scheduled_action = AppScheduledAction::Reload;
         }
-        ui.add(egui::Slider::new(preview_scale, 5f32..=40f32))
-            .on_hover_text_at_pointer("Select tile preview scale");
     });
 }
