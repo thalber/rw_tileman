@@ -238,9 +238,16 @@ impl eframe::App for TilemanApp {
             AppScheduledAction::MoveCategory(old_index, by) => {
                 if let Some(init) = &mut self.init {
                     let new_index = (old_index as i32 + by).max(0) as usize;
-                    println!("moving {new_index} by {by}");
-                    init.categories[old_index].index = new_index;
-                    init.categories[new_index].index = old_index;
+                    println!("moving {old_index} by {by}");
+                    init.categories.get_mut(old_index).and_then(|a| {
+                        a.index = new_index;
+                        Some(a)
+                    });
+                    init.categories.get_mut(new_index).and_then(|a| {
+                        a.index = old_index;
+                        Some(a)
+                    });
+
                     init.sort_and_normalize_categories();
                 }
                 self.clear_selection_and_cache();
@@ -297,7 +304,6 @@ fn draw_tile_details(
     changed_selection: bool,
 ) {
     ui.heading(item.name.clone());
-    
 
     egui::ScrollArea::vertical()
         .id_source("edit_tags_section")
