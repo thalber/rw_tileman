@@ -1,3 +1,5 @@
+use log;
+
 use crate::{
     lingo_de::{self, DeserError},
     lingo_ser,
@@ -29,9 +31,10 @@ pub struct TilemanApp {
     preview_cache: Option<PreviewCache>,
     preview_scale: f32,
     init: Option<TileInit>,
-    //reload_scheduled: bool,
     scheduled_action: AppScheduledAction,
     config: AppPersistentConfig,
+    //log: Box<dyn log::Log>,
+    lhandle: flexi_logger::LoggerHandle
 }
 
 #[derive(Clone)]
@@ -48,19 +51,33 @@ impl TilemanApp {
     ) -> Result<Self, AppError> {
         let init = None;
         let maybe_init = Self::load_data(config.root_path.clone());
+        let lhandle = flexi_logger::Logger::try_with_str("debug")
+            .unwrap()
+            .log_to_file(
+                flexi_logger::FileSpec::default()
+                    .directory(config.output_path.clone())
+                    .basename("tileman")
+                    .suffix("log")
+                    .suppress_timestamp(),
+            )
+            //.log_to_stdout()
+            .write_mode(flexi_logger::WriteMode::BufferAndFlush)
+            .start()
+            .expect("could not create logger");
+        log::error!("start");
         let mut tileman_app = Self {
             selected_tile: Default::default(),
             selected_tile_cache: None,
             init,
             preview_cache: None,
-            //output_path: out.clone(),
             path_selection: config.root_path.to_string_lossy().into_owned(),
             preview_scale: 20f32,
-            //reload_scheduled: false,
             scheduled_action: AppScheduledAction::None,
             config,
             search_selection: String::new(),
+            lhandle,
         };
+
         tileman_app.apply_loaded_data(maybe_init);
         Ok(tileman_app)
     }
@@ -128,7 +145,8 @@ impl eframe::App for TilemanApp {
                 .join("tileman_config.json"),
             serde_json::ser::to_string(&self.config).expect("could not serialize config"),
         ) {
-            println!("{}", err);
+
+            log::error!("{err}")
         }
 
         true
@@ -238,7 +256,7 @@ impl eframe::App for TilemanApp {
             AppScheduledAction::MoveCategory(old_index, by) => {
                 if let Some(init) = &mut self.init {
                     let new_index = (old_index as i32 + by).max(0) as usize;
-                    println!("moving {old_index} by {by}");
+                    log::debug!("moving {old_index} by {by}");
                     init.categories.get_mut(old_index).and_then(|a| {
                         a.index = new_index;
                         Some(a)
@@ -401,7 +419,7 @@ fn create_specs_texture(
         }
     }
     let name = format!("{}-{}", item.name.clone(), postfix);
-    println!(
+    log::info!(
         "creating a new texture for {} - {}",
         item.name.clone(),
         name.clone()
@@ -509,7 +527,6 @@ fn list_tile_category(
                 ui.checkbox(&mut item.active, "");
             }
             if ui.button(item.name.as_str()).clicked() {
-                //println!("{}", item.name);
                 *selected_tile = Some((category_index, item_index));
             };
         });

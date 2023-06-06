@@ -173,7 +173,6 @@ pub fn parse_tile_info<'a>(text: &'a str, force_enabled: bool) -> Result<TileInf
     for cap in REGEX_PROPERTIES.captures_iter(text) {
         let name = &cap[1];
         let val = &cap[2];
-        //println!("{name} : {val}")
         map.insert(String::from(name), String::from(val));
     }
 
@@ -272,7 +271,7 @@ pub fn parse_category_header<'a>(text: &'a str) -> Result<TileCategory, DeserErr
             Some(caps) => caps[1].parse().unwrap_or(0),
             None => 0,
         };
-        println!("{:?} {} ({})", color, nm, text);
+        log::debug!("{:?} {} ({})", color, nm, text);
         Ok(TileCategory::new_main(nm.to_string(), color, index))
     } else {
         Err(DeserError::Todo)

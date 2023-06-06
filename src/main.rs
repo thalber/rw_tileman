@@ -15,16 +15,17 @@ fn main() {
     let cfg_path = wd.join("tileman_config.json");
     let maybe_cfg = std::fs::read_to_string(cfg_path)
         .map(|text| serde_json::de::from_str::<AppPersistentConfig>(text.as_str()));
+
     let cfg = match maybe_cfg {
         Ok(maybe_cfg) => match maybe_cfg {
             Ok(actual_cfg) => actual_cfg,
             Err(err) => {
-                println!("{}", err);
+                log::error!("{}", err);
                 default_cfg
             }
         },
         Err(err) => {
-            println!("{}", err);
+            log::error!("{}", err);
             default_cfg
         }
     };
@@ -44,6 +45,10 @@ fn main() {
         Box::new(|cc| Box::new(rw_tileman::app::TilemanApp::new(cc, cfg).unwrap())),
     ) {
         Ok(_) => {}
-        Err(err) => println!("failed to run app: {}", err),
+        Err(err) => {
+            let mut buf = String::default();
+            println!("failed to run app: {}", err);
+            std::io::stdin().read_line(&mut buf).unwrap();
+        }
     }
 }

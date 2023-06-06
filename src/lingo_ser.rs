@@ -36,7 +36,7 @@ pub fn rewrite_init(
             TileCategoryChange::Delete => {}
             _ => {} //TileCategoryChange::MoveFromSubfolder => category.subfolder = None,
         }
-        println!("{:?}, {:?}", category.scheduled_change, category.subfolder);
+        log::debug!("{:?}, {:?}", category.scheduled_change, category.subfolder);
 
         let cat_text_noexclude = serialize_category(&category, false)
             .into_iter()
@@ -44,7 +44,7 @@ pub fn rewrite_init(
         let cat_text_exclude = serialize_category(&category, true)
             .into_iter()
             .fold(String::new(), |sum, new| format!("{sum}\n{new}"));
-        let (mut cat_text_for_main, mut cat_text_for_sub) =
+        let (cat_text_for_main, cat_text_for_sub) =
             match (category.enabled, category.scheduled_change) {
                 (_, TileCategoryChange::Delete) => (String::new(), String::new()),
                 (true, TileCategoryChange::None) => (cat_text_exclude, cat_text_noexclude),
