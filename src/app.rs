@@ -33,13 +33,11 @@ pub struct TilemanApp {
     init: Option<TileInit>,
     scheduled_action: AppScheduledAction,
     config: AppPersistentConfig,
-    //log: Box<dyn log::Log>,
-    lhandle: flexi_logger::LoggerHandle
+    _lhandle: flexi_logger::LoggerHandle,
 }
 
 #[derive(Clone)]
 pub struct PreviewCache {
-    //position: (usize, usize),
     specs: egui::TextureHandle,
     specs2: Option<egui::TextureHandle>,
 }
@@ -51,7 +49,7 @@ impl TilemanApp {
     ) -> Result<Self, AppError> {
         let init = None;
         let maybe_init = Self::load_data(config.root_path.clone());
-        let lhandle = flexi_logger::Logger::try_with_str("debug")
+        let _lhandle = flexi_logger::Logger::try_with_str("debug")
             .unwrap()
             .log_to_file(
                 flexi_logger::FileSpec::default()
@@ -75,7 +73,7 @@ impl TilemanApp {
             scheduled_action: AppScheduledAction::None,
             config,
             search_selection: String::new(),
-            lhandle,
+            _lhandle,
         };
 
         tileman_app.apply_loaded_data(maybe_init);
@@ -145,7 +143,6 @@ impl eframe::App for TilemanApp {
                 .join("tileman_config.json"),
             serde_json::ser::to_string(&self.config).expect("could not serialize config"),
         ) {
-
             log::error!("{err}")
         }
 
@@ -559,7 +556,7 @@ fn draw_toolbox(
 ) {
     ui.horizontal(|ui| {
         if ui
-            .button("save inits")
+            .button("save")
             .on_hover_text_at_pointer("Write main and subfolder inits to disk (creates a backup)")
             .clicked()
         {
@@ -579,5 +576,27 @@ fn draw_toolbox(
         }
         ui.add(egui::Slider::new(preview_scale, 5f32..=40f32))
             .on_hover_text_at_pointer("Select tile preview scale");
+        if ui
+            .button("all2sub")
+            .on_hover_text_at_pointer("Move all categories from main init to subfolders")
+            .clicked()
+        {
+            for cat in init.categories.iter_mut() {
+                if cat.subfolder.is_none() {
+                    cat.scheduled_change = TileCategoryChange::MoveToSubfolder;
+                }
+            }
+        }
+        if ui
+            .button("all2main")
+            .on_hover_text_at_pointer("Move all categories from subfolders to main init")
+            .clicked()
+        {
+            for cat in init.categories.iter_mut() {
+                if cat.subfolder.is_none() {
+                    cat.scheduled_change = TileCategoryChange::MoveFromSubfolder;
+                }
+            }
+        }
     });
 }
