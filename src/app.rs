@@ -593,7 +593,7 @@ fn draw_toolbox(
             .clicked()
         {
             for cat in init.categories.iter_mut() {
-                if cat.subfolder.is_none() {
+                if cat.subfolder.is_some() {
                     cat.scheduled_change = TileCategoryChange::MoveFromSubfolder;
                 }
             }
