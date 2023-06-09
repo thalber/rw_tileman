@@ -36,7 +36,7 @@ pub fn rewrite_init(
             TileCategoryChange::Delete => {}
             _ => {} //TileCategoryChange::MoveFromSubfolder => category.subfolder = None,
         }
-        log::debug!("{:?}, {:?}", category.scheduled_change, category.subfolder);
+        log::debug!("{:?}, {:?}", category.scheduled_change.clone(), category.subfolder);
 
         let cat_text_noexclude = serialize_category(&category, false)
             .into_iter()
@@ -45,7 +45,7 @@ pub fn rewrite_init(
             .into_iter()
             .fold(String::new(), |sum, new| format!("{sum}\n{new}"));
         let (cat_text_for_main, cat_text_for_sub) =
-            match (category.enabled, category.scheduled_change) {
+            match (category.enabled, category.scheduled_change.clone()) {
                 (_, TileCategoryChange::Delete) => (String::new(), String::new()),
                 (true, TileCategoryChange::None) => (cat_text_exclude, cat_text_noexclude),
                 (false, TileCategoryChange::None) => (String::new(), cat_text_noexclude),
@@ -54,6 +54,8 @@ pub fn rewrite_init(
                 }
                 (false, TileCategoryChange::MoveToSubfolder) => (String::new(), cat_text_noexclude),
                 (_, TileCategoryChange::MoveFromSubfolder) => (cat_text_noexclude, String::new()),
+                (_, TileCategoryChange::Rename(_)) => todo!(),
+               // (false, TileCategoryChange::Rename(_)) => todo!(),
             };
         main_init_to_write.push('\n');
         main_init_to_write.push_str(cat_text_for_main.as_str());

@@ -466,17 +466,18 @@ fn draw_tiles_panel(
 }
 
 fn list_tile_category(
-    ctx: &egui::Context,
+    _ctx: &egui::Context,
     ui: &mut egui::Ui,
-    root: &mut std::path::PathBuf,
+    _root: &mut std::path::PathBuf,
     category: &mut crate::TileCategory,
     selected_tile: &mut Option<(usize, usize)>,
-    selected_tile_cache: &mut Option<(usize, usize)>,
+    _selected_tile_cache: &mut Option<(usize, usize)>,
     category_index: usize,
     scheduled_action: &mut AppScheduledAction,
     search_selection: &mut String,
 ) {
     let is_folder = category.subfolder.is_some();
+    //ui.text_edit_singleline(&mut category.name);
     if is_folder {
         ui.checkbox(&mut category.enabled, "Enable category");
     }
@@ -541,13 +542,8 @@ fn tile_info_matches_search(item: &TileInfo, search_selection: &String) -> bool 
             .any(|tag| name_matches_search(tag, search_selection))
 }
 
-fn name_matches_search(item: &String, search_selection: &String) -> bool {
-    item.to_lowercase()
-        .contains(search_selection.as_str().to_lowercase().as_str())
-}
-
 fn draw_toolbox(
-    ctx: &egui::Context,
+    _ctx: &egui::Context,
     ui: &mut egui::Ui,
     init: &mut TileInit,
     preview_scale: &mut f32,
@@ -599,4 +595,9 @@ fn draw_toolbox(
             }
         }
     });
+}
+
+fn name_matches_search(item: &String, search_selection: &String) -> bool {
+    item.to_lowercase()
+        .contains(search_selection.as_str().to_lowercase().as_str())
 }
