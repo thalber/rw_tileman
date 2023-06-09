@@ -54,7 +54,7 @@ pub fn rewrite_init(
                 }
                 (false, TileCategoryChange::MoveToSubfolder) => (String::new(), cat_text_noexclude),
                 (_, TileCategoryChange::MoveFromSubfolder) => (cat_text_noexclude, String::new()),
-                (_, TileCategoryChange::Rename(_)) => todo!(),
+                //(_, TileCategoryChange::Rename(_)) => todo!(),
                // (false, TileCategoryChange::Rename(_)) => todo!(),
             };
         main_init_to_write.push('\n');

@@ -284,3 +284,8 @@ thread_local! {
         (TileType::Box, "box")
     ].into_iter().collect();
 }
+
+fn name_matches_search(item: &String, search_selection: &String) -> bool {
+    item.to_lowercase()
+        .contains(search_selection.as_str().to_lowercase().as_str())
+}
