@@ -2,7 +2,7 @@ use log;
 
 use crate::{
     lingo_de::{self, DeserError},
-    lingo_ser, name_matches_search,
+    lingo_ser,
     utl::*,
     DeserErrorReports, TileCategoryChange, TileInfo, TileInit,
 };
@@ -60,6 +60,8 @@ impl TilemanApp {
             )
             //.log_to_stdout()
             .write_mode(flexi_logger::WriteMode::BufferAndFlush)
+            .duplicate_to_stdout(flexi_logger::Duplicate::All)
+            .use_utc()
             .start()
             .expect("could not create logger");
         log::error!("start");
@@ -108,7 +110,9 @@ impl TilemanApp {
             Ok((actual_init, errors)) => {
                 //init = Some(actual_init);
                 self.init = Some(actual_init);
-                log::error!("Errors encountered when reading data (ignored on apply) : {errors:#?}\n");
+                log::error!(
+                    "Errors encountered when reading data (ignored on apply) : {errors:#?}\n"
+                );
                 // std::fs::write(
                 //     self.config.output_path.join("tileman_errors.txt"),
                 //     format!("{:#?}", errors),
@@ -320,21 +324,25 @@ fn draw_tile_details(
     changed_selection: bool,
 ) {
     ui.heading(item.name.clone());
-
+    let mut default_string = String::new();
     egui::ScrollArea::vertical()
         .id_source("edit_tags_section")
         .show(ui, |ui| {
             let mut maybe_remove = None;
             for tag_index in indices(&item.tags) {
                 ui.horizontal(|ui| {
-                    ui.text_edit_singleline(&mut item.tags[tag_index]);
+                    ui.text_edit_singleline(
+                        item.tags.get_mut(tag_index).unwrap_or(&mut default_string),
+                    );
                     if ui.button("remove").clicked() {
                         maybe_remove = Some(tag_index);
+                        log::debug!("removing tag {tag_index} from {}", item.name.clone())
                     }
                 });
             }
             if (ui.button("Add tag")).clicked() {
-                item.tags.push(String::new())
+                item.tags.push(String::new());
+                log::debug!("adding tag to {}", item.name.clone())
             }
             if let Some(remove) = maybe_remove {
                 item.tags.remove(remove);
