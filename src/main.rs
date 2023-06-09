@@ -20,12 +20,12 @@ fn main() {
         Ok(maybe_cfg) => match maybe_cfg {
             Ok(actual_cfg) => actual_cfg,
             Err(err) => {
-                log::error!("{}", err);
+                log::error!("{err}");
                 default_cfg
             }
         },
         Err(err) => {
-            log::error!("{}", err);
+            log::error!("{err}");
             default_cfg
         }
     };

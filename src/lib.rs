@@ -9,7 +9,7 @@ pub mod lingo_ser;
 mod utl;
 
 type DeserErrorReports = Vec<(String, DeserError)>;
-type SerErrorReports = Vec<(TileCategory, SerError)>;
+type SerErrorReports = Vec<SerError>;
 type PrimitiveColor = [u8; 3];
 
 #[cfg(test)]

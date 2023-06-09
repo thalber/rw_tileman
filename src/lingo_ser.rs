@@ -5,7 +5,7 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SerError {
-    IOError(String),
+    IOError { text: String, category: String },
     Todo,
 }
 
@@ -17,11 +17,12 @@ pub fn rewrite_init(
     let mut main_init_to_write = String::new();
     let mut errors = backup_init_files(init);
     if errors.len() > 0 {
-        std::fs::write(
-            output_path.join("tileman_backup_errors.txt"),
-            format!("{:#?}", (now, errors)),
-        )
-        .expect("Could not write error reports");
+        log::error!("encountered errors during backup: {:#?}", (now, errors));
+        // std::fs::write(
+        //     output_path.join("tileman_backup_errors.txt"),
+        //     format!("{:#?}", (now, errors)),
+        // )
+        // .expect("Could not write error reports");
         panic!("Could not create init backups!")
     }
 
@@ -36,7 +37,11 @@ pub fn rewrite_init(
             TileCategoryChange::Delete => {}
             _ => {} //TileCategoryChange::MoveFromSubfolder => category.subfolder = None,
         }
-        log::debug!("{:?}, {:?}", category.scheduled_change.clone(), category.subfolder);
+        log::debug!(
+            "{:?}, {:?}",
+            category.scheduled_change.clone(),
+            category.subfolder
+        );
 
         let cat_text_noexclude = serialize_category(&category, false)
             .into_iter()
@@ -55,7 +60,7 @@ pub fn rewrite_init(
                 (false, TileCategoryChange::MoveToSubfolder) => (String::new(), cat_text_noexclude),
                 (_, TileCategoryChange::MoveFromSubfolder) => (cat_text_noexclude, String::new()),
                 //(_, TileCategoryChange::Rename(_)) => todo!(),
-               // (false, TileCategoryChange::Rename(_)) => todo!(),
+                // (false, TileCategoryChange::Rename(_)) => todo!(),
             };
         main_init_to_write.push('\n');
         main_init_to_write.push_str(cat_text_for_main.as_str());
@@ -69,15 +74,18 @@ pub fn rewrite_init(
             match category.scheduled_change {
                 TileCategoryChange::Delete | TileCategoryChange::MoveFromSubfolder => {
                     if let Err(err) = std::fs::remove_file(init_path.clone()) {
-                        errors.push((
-                            category.clone(),
-                            lingo_ser::SerError::IOError(format!("{:?}", err)),
-                        ));
+                        errors.push(lingo_ser::SerError::IOError {
+                            text: format!("{err:?}"),
+                            category: category.name.clone(),
+                        });
                     };
                 }
                 _ => {
                     if let Err(err) = std::fs::write(init_path, cat_text_for_sub) {
-                        errors.push((category.clone(), SerError::IOError(format!("{:?}", err))));
+                        errors.push(SerError::IOError {
+                            text: format!("{err:?}"),
+                            category: category.name.clone(),
+                        });
                     }
                 }
             }
@@ -102,16 +110,22 @@ pub fn rewrite_init(
                 }
             });
             for (filename, error) in png_errors {
-                errors.push((
-                    category.clone(),
-                    SerError::IOError(format!("Could not copy png for {}: {}", filename, error)),
-                ))
+                errors.push(SerError::IOError {
+                    text: format!("could not copy ong for {filename} due to: {error}"),
+                    category: category.name.clone(),
+                })
             }
         }
     }
     let main_init_path = init.root.join("init.txt");
     if let Err(err) = std::fs::write(main_init_path, main_init_to_write) {
-        return Err((SerError::IOError(format!("{err}")), errors));
+        return Err((
+            SerError::IOError {
+                text: format!("{err:?}"),
+                category: String::from("MAIN"),
+            },
+            errors,
+        ));
     };
     Ok(errors)
 }
@@ -151,7 +165,10 @@ pub fn backup_init_files(init: &TileInit) -> SerErrorReports {
             let copy_results = std::fs::copy(init_path, newpath);
             match copy_results {
                 Err(err) => {
-                    res.push((category, SerError::IOError(format!("{}", err))));
+                    res.push(SerError::IOError {
+                        text: format!("{err:?}"),
+                        category: category.name,
+                    });
                 }
                 Ok(_) => {}
             }

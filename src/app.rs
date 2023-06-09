@@ -2,9 +2,9 @@ use log;
 
 use crate::{
     lingo_de::{self, DeserError},
-    lingo_ser,
+    lingo_ser, name_matches_search,
     utl::*,
-    DeserErrorReports, TileCategoryChange, TileInfo, TileInit, name_matches_search,
+    DeserErrorReports, TileCategoryChange, TileInfo, TileInit,
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -100,7 +100,6 @@ impl TilemanApp {
             Err(err) => Err(AppError::IOError(format!("{:?}", err))),
         }
     }
-
     fn apply_loaded_data(
         &mut self,
         maybe_init: Result<(TileInit, Vec<(String, DeserError)>), AppError>,
@@ -109,19 +108,21 @@ impl TilemanApp {
             Ok((actual_init, errors)) => {
                 //init = Some(actual_init);
                 self.init = Some(actual_init);
-                std::fs::write(
-                    self.config.output_path.join("tileman_errors.txt"),
-                    format!("{:#?}", errors),
-                )
-                .expect("could not write errors");
+                log::error!("Errors encountered when reading data (ignored on apply) : {errors:#?}\n");
+                // std::fs::write(
+                //     self.config.output_path.join("tileman_errors.txt"),
+                //     format!("{:#?}", errors),
+                // )
+                // .expect("could not write errors");
             }
             Err(err) => {
                 self.init = None;
-                std::fs::write(
-                    self.config.output_path.join("tileman_errors.txt"),
-                    format!("{:?}", err),
-                )
-                .expect("could not write errors")
+                log::error!("Could not load data at all {err:?}");
+                // std::fs::write(
+                //     self.config.output_path.join("tileman_errors.txt"),
+                //     format!("{:?}", err),
+                // )
+                // .expect("could not write errors")
             }
         };
     }
@@ -143,7 +144,7 @@ impl eframe::App for TilemanApp {
                 .join("tileman_config.json"),
             serde_json::ser::to_string(&self.config).expect("could not serialize config"),
         ) {
-            log::error!("{err}")
+            log::error!("error saving config to disk: {err}")
         }
 
         true
@@ -558,11 +559,12 @@ fn draw_toolbox(
         {
             *scheduled_action = AppScheduledAction::Reload;
             let result = lingo_ser::rewrite_init(&init, output_path.clone());
-            std::fs::write(
-                output_path.join("write_report.txt"),
-                format!("{:#?}", result),
-            )
-            .expect("Could not write errors");
+            log::info!("saved with result {:#?}", result)
+            // std::fs::write(
+            //     output_path.join("write_report.txt"),
+            //     format!("{:#?}", result),
+            // )
+            // .expect("Could not write errors");
         };
         if (ui.button("reload"))
             .on_hover_text_at_pointer("Reload inits from disk")
