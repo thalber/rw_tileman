@@ -42,7 +42,7 @@ fn main() {
         )
         //.log_to_stdout()
         .write_mode(flexi_logger::WriteMode::BufferAndFlush)
-        //.duplicate_to_stdout(flexi_logger::Duplicate::All)
+        .duplicate_to_stdout(flexi_logger::Duplicate::All)
         .use_utc()
         .start()
         .expect("could not create logger");

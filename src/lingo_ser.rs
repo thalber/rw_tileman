@@ -18,7 +18,10 @@ pub fn rewrite_init(
     let mut main_init_to_write = String::new();
     let mut errors = backup_init_files(init);
     if errors.len() > 0 {
-        log::error!("encountered errors during backup: {:#?}", (now, errors.clone()));
+        log::error!(
+            "encountered errors during backup: {:#?}",
+            (now, errors.clone())
+        );
         return Err((SerError::InitBackupFailed, errors));
         //panic!("Could not create init backups!")
     }
@@ -238,14 +241,12 @@ fn aggregate_number_array<'a>(numbers: impl std::iter::Iterator<Item = i32>) -> 
 }
 
 fn aggregate_string_array<'a>(strings: impl std::iter::Iterator<Item = String>) -> String {
-    aggregate_array(strings.map(|str| format!("\"{}\"", str)))
+    aggregate_array(strings.map(|str| format!("\"{str}\"")))
 }
 
-fn aggregate_array<'a, TI: std::fmt::Display>(
-    items: impl std::iter::Iterator<Item = TI>,
-) -> String {
+pub fn aggregate_array(items: impl std::iter::Iterator<Item = impl std::fmt::Display>) -> String {
     items
-        .fold(String::new(), |str, new| format!("{},{}", str, new))
+        .fold(String::new(), |str, new| format!("{str},{new}"))
         .get(1..)
         .unwrap_or("")
         .to_string()
