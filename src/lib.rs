@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use cycle_map::{CycleMap, GroupMap};
 use lingo_de::DeserError;
 use lingo_ser::SerError;
