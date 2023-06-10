@@ -1,6 +1,7 @@
-use rw_tileman::app::AppPersistentConfig;
+use rw_tileman::*;
 
 fn main() {
+    //read config
     let wd = std::env::current_dir().expect("could not get wd");
     let default_root = wd.clone();
     let default_out = wd.clone();
@@ -29,26 +30,36 @@ fn main() {
             default_cfg
         }
     };
-    // .into_iter()
-    // .flatten()
-    // .next()
-    // .unwrap_or(AppPersistentConfig {
-    //     root_path: default_root,
-    //     output_path: default_out,
-    // });
-
-    //let guh = serde_json::de::from_str::<AppPersistentConfig>("s");
-
+    //initialize logger
+    let lhandle = flexi_logger::Logger::try_with_str("debug")
+        .unwrap()
+        .log_to_file(
+            flexi_logger::FileSpec::default()
+                .directory(cfg.output_path.clone())
+                .basename("tileman")
+                .suffix("log")
+                .suppress_timestamp(),
+        )
+        //.log_to_stdout()
+        .write_mode(flexi_logger::WriteMode::BufferAndFlush)
+        .duplicate_to_stdout(flexi_logger::Duplicate::All)
+        .use_utc()
+        .start()
+        .expect("could not create logger");
+    log::error!("start");
+    //run the app and handle exit error
     match eframe::run_native(
         "rw_tileman",
         native_options,
-        Box::new(|cc| Box::new(rw_tileman::app::TilemanApp::new(cc, cfg).unwrap())),
+        Box::new(|cc| {
+            let app = rw_tileman::app::TilemanApp::new(cc, cfg, lhandle).unwrap();
+            //logger_handle = Some(app._lhandle.clone());
+            Box::new(app)
+        }),
     ) {
         Ok(_) => {}
         Err(err) => {
-            let mut buf = String::default();
-            println!("failed to run app: {}", err);
-            std::io::stdin().read_line(&mut buf).unwrap();
+            log::error!("failed to run app: {}", err);
         }
     }
 }

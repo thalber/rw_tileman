@@ -79,6 +79,12 @@ pub struct TileInfo {
     pub tags: Vec<String>,               //tags
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct AppPersistentConfig {
+    pub root_path: std::path::PathBuf,
+    pub output_path: std::path::PathBuf,
+}
+
 impl PartialEq for TileInfo {
     fn eq(&self, other: &Self) -> bool {
         //self.active == other.active

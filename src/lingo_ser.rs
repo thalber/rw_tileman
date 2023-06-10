@@ -5,6 +5,7 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SerError {
+    InitBackupFailed,
     IOError { text: String, category: String },
     Todo,
 }
@@ -17,18 +18,11 @@ pub fn rewrite_init(
     let mut main_init_to_write = String::new();
     let mut errors = backup_init_files(init);
     if errors.len() > 0 {
-        log::error!("encountered errors during backup: {:#?}", (now, errors));
-        // std::fs::write(
-        //     output_path.join("tileman_backup_errors.txt"),
-        //     format!("{:#?}", (now, errors)),
-        // )
-        // .expect("Could not write error reports");
-        panic!("Could not create init backups!")
+        log::error!("encountered errors during backup: {:#?}", (now, errors.clone()));
+        return Err((SerError::InitBackupFailed, errors));
+        //panic!("Could not create init backups!")
     }
-
-    for mut category in init.categories.clone().into_iter()
-    //.filter(|cat| cat.scheduled_change != TileCategoryChange::Delete)
-    {
+    for mut category in init.categories.clone().into_iter() {
         match category.scheduled_change {
             TileCategoryChange::None => {}
             TileCategoryChange::MoveToSubfolder => {

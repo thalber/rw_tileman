@@ -4,19 +4,14 @@ use crate::{
     lingo_de::{self, DeserError},
     lingo_ser,
     utl::*,
-    DeserErrorReports, TileCategoryChange, TileInfo, TileInit,
+    *
 };
-
-#[derive(serde::Deserialize, serde::Serialize)]
-pub struct AppPersistentConfig {
-    pub root_path: std::path::PathBuf,
-    pub output_path: std::path::PathBuf,
-}
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AppScheduledAction {
     None,
     Reload,
     MoveCategory(usize, i32),
+    DisplayMessage(String)
 }
 #[derive(Debug)]
 pub enum AppError {
@@ -33,7 +28,7 @@ pub struct TilemanApp {
     init: Option<TileInit>,
     scheduled_action: AppScheduledAction,
     config: AppPersistentConfig,
-    _lhandle: flexi_logger::LoggerHandle,
+    pub lhandle: flexi_logger::LoggerHandle,
 }
 
 #[derive(Clone)]
@@ -46,25 +41,11 @@ impl TilemanApp {
     pub fn new(
         _cc: &eframe::CreationContext,
         config: AppPersistentConfig,
+        lhandle: flexi_logger::LoggerHandle
     ) -> Result<Self, AppError> {
         let init = None;
         let maybe_init = Self::load_data(config.root_path.clone());
-        let _lhandle = flexi_logger::Logger::try_with_str("debug")
-            .unwrap()
-            .log_to_file(
-                flexi_logger::FileSpec::default()
-                    .directory(config.output_path.clone())
-                    .basename("tileman")
-                    .suffix("log")
-                    .suppress_timestamp(),
-            )
-            //.log_to_stdout()
-            .write_mode(flexi_logger::WriteMode::BufferAndFlush)
-            .duplicate_to_stdout(flexi_logger::Duplicate::All)
-            .use_utc()
-            .start()
-            .expect("could not create logger");
-        log::error!("start");
+        
         let mut tileman_app = Self {
             selected_tile: Default::default(),
             selected_tile_cache: None,
@@ -75,7 +56,7 @@ impl TilemanApp {
             scheduled_action: AppScheduledAction::None,
             config,
             search_selection: String::new(),
-            _lhandle,
+            lhandle,
         };
 
         tileman_app.apply_loaded_data(maybe_init);
@@ -113,20 +94,10 @@ impl TilemanApp {
                 log::error!(
                     "Errors encountered when reading data (ignored on apply) : {errors:#?}\n"
                 );
-                // std::fs::write(
-                //     self.config.output_path.join("tileman_errors.txt"),
-                //     format!("{:#?}", errors),
-                // )
-                // .expect("could not write errors");
             }
             Err(err) => {
                 self.init = None;
                 log::error!("Could not load data at all {err:?}");
-                // std::fs::write(
-                //     self.config.output_path.join("tileman_errors.txt"),
-                //     format!("{:?}", err),
-                // )
-                // .expect("could not write errors")
             }
         };
     }
@@ -247,7 +218,7 @@ impl eframe::App for TilemanApp {
         }
         self.selected_tile_cache = self.selected_tile.clone();
 
-        match self.scheduled_action {
+        match self.scheduled_action.clone() {
             AppScheduledAction::None => {}
             AppScheduledAction::Reload => {
                 self.apply_loaded_data(Self::load_data(std::path::PathBuf::from(
@@ -272,6 +243,10 @@ impl eframe::App for TilemanApp {
                 }
                 self.clear_selection_and_cache();
             }
+            AppScheduledAction::DisplayMessage(msg) => {
+                
+                
+            },
         }
         self.scheduled_action = AppScheduledAction::None;
         // if self.reload_scheduled {
@@ -565,14 +540,15 @@ fn draw_toolbox(
             .on_hover_text_at_pointer("Write main and subfolder inits to disk (creates a backup)")
             .clicked()
         {
-            *scheduled_action = AppScheduledAction::Reload;
-            let result = lingo_ser::rewrite_init(&init, output_path.clone());
-            log::info!("saved with result {:#?}", result)
-            // std::fs::write(
-            //     output_path.join("write_report.txt"),
-            //     format!("{:#?}", result),
-            // )
-            // .expect("Could not write errors");
+            
+            if let Err((err, _)) = lingo_ser::rewrite_init(&init, output_path.clone()) {
+                *scheduled_action = AppScheduledAction::DisplayMessage(format!("failed to save inits to disk due to the following error: {err:?}. details in tileman.log"));
+            }
+            else {
+                *scheduled_action = AppScheduledAction::Reload;
+                //log::info!("saved with result {:#?}", result)
+            }
+            
         };
         if (ui.button("reload"))
             .on_hover_text_at_pointer("Reload inits from disk")
