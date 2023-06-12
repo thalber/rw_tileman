@@ -1,4 +1,6 @@
-#![windows_subsystem = "windows"]
+#![cfg_attr(not(test), windows_subsystem = "windows")]
+
+use std::collections::HashMap;
 
 use cycle_map::{CycleMap, GroupMap};
 use include_dir::{include_dir, Dir};
@@ -244,7 +246,8 @@ impl TileInit {
 
 const TILE_ON_MARKER: &str = "--TILE_ENABLED";
 const CATEGORY_ON_MARKER: &str = "--CATEGORY_ENABLED";
-static ASSETS_DIR: Dir<'_> = include_dir!("$TILEMAN_ASSETS");
+const CELL_TEXTURE_DIM: usize = 5;
+pub static ASSETS_DIR: Dir<'_> = include_dir!("$TILEMAN_ASSETS");
 
 thread_local! {
     static TILE_CELL_NUMBERS: CycleMap<TileCell, i32> = vec![
@@ -286,7 +289,18 @@ thread_local! {
         (TileCell::Glass,               [000, 000, 255]),
     ].into_iter().collect();
 
-    
+    static TILE_CELL_TEXTURES: HashMap<TileCell, multiarray::Array2D<PrimitiveColor>> = vec![
+        TileCell::Any,
+        TileCell::Air,
+        TileCell::Wall,
+        TileCell::SlopeBottomLeft,
+        TileCell::SlopeBottomRight,
+        TileCell::SlopeTopLeft,
+        TileCell::SlopeTopRight,
+        TileCell::Floor,
+        TileCell::Entrance,
+        TileCell::Glass
+    ].into_iter().map(|tc| (tc, utl::read_cell_texture(tc).unwrap())).collect();
 
     static TILE_TYPE_STRINGS: CycleMap<TileType, &'static str> = vec![
         (TileType::VoxelStruct, "voxelStruct"),

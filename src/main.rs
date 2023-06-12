@@ -1,5 +1,4 @@
 use rw_tileman::*;
-
 fn main() {
     //read config
     let wd = std::env::current_dir().expect("could not get wd");

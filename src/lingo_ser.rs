@@ -12,7 +12,7 @@ pub enum SerError {
 
 pub fn rewrite_init(
     init: &TileInit,
-    output_path: std::path::PathBuf,
+    _output_path: std::path::PathBuf,
 ) -> Result<SerErrorReports, (SerError, SerErrorReports)> {
     let now = std::time::Instant::now();
     let mut main_init_to_write = String::new();

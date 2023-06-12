@@ -19,6 +19,9 @@ pub enum AppScheduledAction {
 }
 #[derive(Debug)]
 pub enum AppError {
+    TextureNotLargeEnough(String),
+    InvalidTexture(String, png::DecodingError),
+    MissingTexture(String),
     IOError(String),
     Todo,
 }
@@ -392,16 +395,36 @@ fn create_specs_texture(
     // );
     let cells = item.display_cells(take_specs2);
     let dim = cells.extents();
-    let size_x = *dim.get(0).unwrap_or(&0);
-    let size_y = *dim.get(1).unwrap_or(&0);
+    let xsize_cells = *dim.get(0).unwrap_or(&0);
+    let ysize_cells = *dim.get(1).unwrap_or(&0);
 
-    let mut image = egui::ColorImage::new([size_x, size_y], egui::Color32::from_rgb(255, 255, 255));
-    for x in 0..(size_x) {
-        for y in 0..(size_y) {
-            let index_to_take = y * size_x + x;
-            let display_color = cells[[x, y]].display_color();
-            image.pixels[index_to_take] =
-                egui::Color32::from_rgb(display_color[0], display_color[1], display_color[2]);
+    let xsize_pixels = xsize_cells * CELL_TEXTURE_DIM;
+    let ysize_pixels = ysize_cells * CELL_TEXTURE_DIM;
+    let mut image = egui::ColorImage::new([xsize_pixels, ysize_pixels], egui::Color32::from_rgb(255, 255, 255));
+    for x in 0..(xsize_cells) {
+        for y in 0..(ysize_cells) {
+            TILE_CELL_TEXTURES.with(|tct| {
+                //dbg!("reached coord", x, y, cells.extents());
+                let celltex = tct.get(&cells[[x, y]]).expect("Missing cell texture");
+                for ysub in 0..CELL_TEXTURE_DIM {
+                    for xsub in 0..CELL_TEXTURE_DIM {
+                        let (xc, yc) = (x * CELL_TEXTURE_DIM + xsub, y * CELL_TEXTURE_DIM + ysub);
+                        let mut color = celltex[[xsub, ysub]].into_iter();
+                        let flatcoord = yc * xsize_pixels + xc;
+                        
+                        
+                        image.pixels[flatcoord] = egui::Color32::from_rgb(
+                            color.next().unwrap(),
+                            color.next().unwrap(), 
+                            color.next().unwrap())
+                    }
+                }
+            })
+
+            // let index_to_take = y * size_x + x;
+            // let display_color = cells[[x, y]].display_color();
+            // image.pixels[index_to_take] =
+            //     egui::Color32::from_rgb(display_color[0], display_color[1], display_color[2]);
         }
     }
     let name = format!("{}-{}", item.name.clone(), postfix);

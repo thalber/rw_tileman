@@ -4,6 +4,16 @@ use crate::{
 };
 
 #[test]
+pub fn cell_textures() {
+    let celltex = crate::utl::read_cell_texture(crate::TileCell::Air).unwrap();
+    for y in 0..5 {
+        for x in 0..5 {
+            assert_eq!(celltex[[x, y]], [255, 255, 255])
+        }
+    }
+}
+
+#[test]
 pub fn ser_and_deser() {
     let initial = r#"[#nm:"test_tile", #sz:point(2, 2), #specs:[1,1,1,1], #specs2:0, #tp:"voxelStruct", #repeatL:[10], #bfTiles:0, #rnd:1, #ptPos:0, #tags:["a", "b"]]"#;
     let de = lingo_de::parse_tile_info(initial, false).unwrap();
