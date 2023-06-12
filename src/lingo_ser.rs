@@ -64,26 +64,41 @@ pub fn rewrite_init(
 
         if let Some(sub) = category.subfolder.clone() {
             let init_path = sub.join("init.txt");
+            let color_path = sub.join("color.txt");
             if !sub.exists() {
                 std::fs::create_dir(sub.clone())
                     .expect(format!("could not create dir {:?}", sub.clone()).as_str());
             }
-            match category.scheduled_change {
-                TileCategoryChange::Delete | TileCategoryChange::MoveFromSubfolder => {
-                    if let Err(err) = std::fs::remove_file(init_path.clone()) {
+            macro_rules! do_io_and_push {
+                ($action:expr,  $format:literal, $($args:expr),*) => {
+                    if let Err(err) = $action($( $args,)* ) {
                         errors.push(lingo_ser::SerError::IOError {
                             text: format!("{err:?}"),
-                            category: category.name.clone(),
+                            category: format!($format, err),
                         });
                     };
+                };
+            }
+            match category.scheduled_change {
+                TileCategoryChange::Delete | TileCategoryChange::MoveFromSubfolder => {
+
+                    do_io_and_push!(std::fs::remove_file, "{:?}", init_path.clone());
+                    do_io_and_push!(std::fs::remove_file, "{:?}/col", color_path.clone());
                 }
                 _ => {
-                    if let Err(err) = std::fs::write(init_path, cat_text_for_sub) {
-                        errors.push(SerError::IOError {
-                            text: format!("{err:?}"),
-                            category: category.name.clone(),
-                        });
-                    }
+
+                    do_io_and_push!(std::fs::write, "{:?}", init_path.clone(), cat_text_for_sub);
+                    do_io_and_push!(
+                        std::fs::write,
+                        "{:?}/col",
+                        color_path.clone(),
+                        category
+                            .color
+                            .into_iter()
+                            .fold(String::new(), |text, new| format!("{text},{new}"))
+                            .get(1..)
+                            .unwrap_or("")
+                    );
                 }
             }
             //copy tile files
