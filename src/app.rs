@@ -307,6 +307,12 @@ fn draw_tile_details(
     changed_selection: bool,
 ) {
     ui.heading(item.name.clone());
+    ui.label(format!(
+        "size: {:?}\n repeatL: {:?}\n random vars: {:?}\n", 
+        item.size, 
+        item.repeat_layers, 
+        item.random_vars));
+    //ui.label(format!({}, ))
     let mut default_string = String::new();
     egui::ScrollArea::vertical()
         .id_source("edit_tags_section")

@@ -1,5 +1,3 @@
-use serde::__private::de;
-
 use crate::{app::AppError, PrimitiveColor, TileCell};
 
 pub fn indices<'a, T>(vec: &'a Vec<T>) -> impl Iterator<Item = usize> {
