@@ -591,6 +591,7 @@ fn draw_toolbox(
                 }
             }
         }
+        #[cfg(debug_assertions)]
         if ui.button("test popup").clicked() {
             *scheduled_action = AppScheduledAction::DisplayMessage 
             { 
