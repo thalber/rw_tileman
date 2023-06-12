@@ -11,7 +11,11 @@ pub enum AppScheduledAction {
     None,
     Reload,
     MoveCategory(usize, i32),
-    DisplayMessage(String)
+    DisplayMessage {
+        icon: msgbox::IconType,
+        title: String,
+        text: String,
+    }
 }
 #[derive(Debug)]
 pub enum AppError {
@@ -243,9 +247,10 @@ impl eframe::App for TilemanApp {
                 }
                 self.clear_selection_and_cache();
             }
-            AppScheduledAction::DisplayMessage(msg) => {
+            AppScheduledAction::DisplayMessage { icon, title, text } => {
                 
-                
+                let msgbox_res = msgbox::create(&title, &text, icon);
+                log::info!("{msgbox_res:?}")
             },
         }
         self.scheduled_action = AppScheduledAction::None;
@@ -542,7 +547,13 @@ fn draw_toolbox(
         {
             
             if let Err((err, _)) = lingo_ser::rewrite_init(&init, output_path.clone()) {
-                *scheduled_action = AppScheduledAction::DisplayMessage(format!("failed to save inits to disk due to the following error: {err:?}. details in tileman.log"));
+                *scheduled_action = AppScheduledAction::DisplayMessage 
+                {
+                    icon: msgbox::IconType::Error,
+                    title: String::from("Error saving inits"),
+                    text: format!("failed to save inits to disk due to the following error: {err:?}. details in tileman.log") 
+                };
+                //format!("failed to save inits to disk due to the following error: {err:?}. details in tileman.log")
             }
             else {
                 *scheduled_action = AppScheduledAction::Reload;
@@ -578,6 +589,14 @@ fn draw_toolbox(
                 if cat.subfolder.is_some() {
                     cat.scheduled_change = TileCategoryChange::MoveFromSubfolder;
                 }
+            }
+        }
+        if ui.button("test popup").clicked() {
+            *scheduled_action = AppScheduledAction::DisplayMessage 
+            { 
+                icon: msgbox::IconType::None, 
+                title: String::from("que"), 
+                text: String::from("guh")
             }
         }
     });

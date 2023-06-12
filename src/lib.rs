@@ -1,6 +1,7 @@
 #![windows_subsystem = "windows"]
 
 use cycle_map::{CycleMap, GroupMap};
+use include_dir::{include_dir, Dir};
 use lingo_de::DeserError;
 use lingo_ser::SerError;
 use utl::indices;
@@ -243,6 +244,7 @@ impl TileInit {
 
 const TILE_ON_MARKER: &str = "--TILE_ENABLED";
 const CATEGORY_ON_MARKER: &str = "--CATEGORY_ENABLED";
+static ASSETS_DIR: Dir<'_> = include_dir!("$TILEMAN_ASSETS");
 
 thread_local! {
     static TILE_CELL_NUMBERS: CycleMap<TileCell, i32> = vec![
@@ -283,6 +285,8 @@ thread_local! {
         (TileCell::Entrance,            [000, 255, 255]),
         (TileCell::Glass,               [000, 000, 255]),
     ].into_iter().collect();
+
+    
 
     static TILE_TYPE_STRINGS: CycleMap<TileType, &'static str> = vec![
         (TileType::VoxelStruct, "voxelStruct"),
